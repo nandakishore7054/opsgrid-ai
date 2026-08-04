@@ -27,9 +27,24 @@ async function getActiveWorkers() {
   const date = getStartOfDay(now);
 
   // 1. Get all workers who are checked in and haven't checked out (regardless of whether they checked in before midnight)
-  const activeAttendances = await AttendanceRecord.find({
+  const allActiveAttendances = await AttendanceRecord.find({
     checkOut: { $exists: false },
-  }).populate('workerId', 'name email');
+  })
+    .sort({ createdAt: -1 })
+    .populate('workerId', 'name email currentLocation lastPing batteryLevel accuracy');
+
+  // Keep only the latest attendance record per worker
+  const activeAttendances = [];
+  const seenWorkers = new Set();
+  
+  for (const record of allActiveAttendances) {
+    if (!record.workerId) continue;
+    const wid = record.workerId._id.toString();
+    if (!seenWorkers.has(wid)) {
+      seenWorkers.add(wid);
+      activeAttendances.push(record);
+    }
+  }
 
   // Load CustomerVisit model
   const CustomerVisit = require('./customerVisit.model');
@@ -41,10 +56,7 @@ async function getActiveWorkers() {
       if (!attendance.workerId) return null;
 
       const workerId = attendance.workerId._id;
-      
-      const latestLocation = await WorkerLocation.findOne({ workerId })
-        .sort({ timestamp: -1 })
-        .select('location timestamp accuracy speed isMoving batteryLevel');
+      const user = attendance.workerId;
 
       let latitude = null;
       let longitude = null;
@@ -54,14 +66,12 @@ async function getActiveWorkers() {
       let isMoving = null;
       let batteryLevel = null;
 
-      if (latestLocation && latestLocation.location && latestLocation.location.coordinates) {
-        longitude = latestLocation.location.coordinates[0];
-        latitude = latestLocation.location.coordinates[1];
-        timestamp = latestLocation.timestamp;
-        accuracy = latestLocation.accuracy;
-        speed = latestLocation.speed;
-        isMoving = latestLocation.isMoving;
-        batteryLevel = latestLocation.batteryLevel;
+      if (user.currentLocation && user.currentLocation.coordinates && user.currentLocation.coordinates.length === 2) {
+        longitude = user.currentLocation.coordinates[0];
+        latitude = user.currentLocation.coordinates[1];
+        timestamp = user.lastPing;
+        accuracy = user.accuracy;
+        batteryLevel = user.batteryLevel;
       } else if (attendance.checkIn && attendance.checkIn.location) {
         // Fallback to check-in location if no active tracking ping exists
         longitude = attendance.checkIn.location.coordinates[0];
@@ -130,10 +140,14 @@ async function getWorkerTrail(workerId, dateStr) {
   const { calculateTotalDistance, filterValidLocations } = require('../../core/utils/distance.util');
   const validLocations = filterValidLocations(locations);
 
+  console.log(`\n[TRAIL DEBUG] Worker: ${workerId}`);
+  console.log(`[TRAIL DEBUG] Raw locations fetched from MongoDB: ${locations.length}`);
+  console.log(`[TRAIL DEBUG] Filtered validLocations length: ${validLocations.length}`);
+
   const coordinates = [];
   
-  for (let i = 0; i < locations.length; i++) {
-    const loc = locations[i];
+  for (let i = 0; i < validLocations.length; i++) {
+    const loc = validLocations[i];
     if (loc.location && loc.location.coordinates) {
       coordinates.push({
         lat: loc.location.coordinates[1],
@@ -142,6 +156,8 @@ async function getWorkerTrail(workerId, dateStr) {
       });
     }
   }
+
+  console.log(`[TRAIL DEBUG] Coordinates returned array length: ${coordinates.length}`);
 
   const totalDistanceKm = calculateTotalDistance(validLocations);
 

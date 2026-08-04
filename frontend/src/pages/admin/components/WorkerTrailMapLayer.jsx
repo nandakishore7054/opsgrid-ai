@@ -28,23 +28,6 @@ const startIcon = createLabeledIcon('START', '#10b981'); // Emerald 500
 const endIcon = createLabeledIcon('END', '#f43f5e'); // Rose 500
 
 export default function WorkerTrailMapLayer({ trailData, isVisible }) {
-  const map = useMap();
-  const layerGroupRef = useRef(null);
-
-  useEffect(() => {
-    if (!isVisible || !trailData || trailData.coordinates.length === 0) {
-      return;
-    }
-
-    const polylinePositions = trailData.coordinates.map(coord => [coord.lat, coord.lng]);
-    
-    // Automatically fit bounds
-    if (polylinePositions.length > 0) {
-      const polylineBounds = L.polyline(polylinePositions).getBounds();
-      map.fitBounds(polylineBounds, { padding: [50, 50], maxZoom: 16, animate: true });
-    }
-  }, [trailData, isVisible, map]);
-
   if (!isVisible || !trailData || trailData.coordinates.length === 0) {
     return null;
   }
@@ -54,6 +37,7 @@ export default function WorkerTrailMapLayer({ trailData, isVisible }) {
   const endPoint = polylinePositions[polylinePositions.length - 1];
 
   const formatDateTime = (isoString) => {
+    if (!isoString) return { date: 'N/A', time: 'N/A' };
     const d = new Date(isoString);
     return {
       date: d.toLocaleDateString(),
@@ -66,6 +50,7 @@ export default function WorkerTrailMapLayer({ trailData, isVisible }) {
 
   return (
     <>
+      {/* 1+ points: Render START */}
       {startPoint && (
         <Marker position={startPoint} icon={startIcon}>
           <Popup className="rounded-xl shadow-lg border-0 overflow-hidden">
@@ -78,6 +63,7 @@ export default function WorkerTrailMapLayer({ trailData, isVisible }) {
         </Marker>
       )}
       
+      {/* 2+ points: Render END */}
       {endPoint && polylinePositions.length > 1 && (
         <Marker position={endPoint} icon={endIcon}>
           <Popup className="rounded-xl shadow-lg border-0 overflow-hidden">
@@ -90,6 +76,7 @@ export default function WorkerTrailMapLayer({ trailData, isVisible }) {
         </Marker>
       )}
 
+      {/* 2+ points: Render Polyline */}
       {polylinePositions.length > 1 && (
         <Polyline 
           positions={polylinePositions} 

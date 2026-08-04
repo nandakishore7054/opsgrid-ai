@@ -25,18 +25,36 @@ import {
 const INDIA_CENTER = [22.5937, 78.9629];
 const DEFAULT_ZOOM = 5;
 
+// Haversine distance formula for frontend validation
+function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
 // Floating Map Controls Component
-function MapController({ workers, selectedWorkerId, onResetCenter, isNearestMode, onToggleNearestMode, clickedLocation, nearestWorkers }) {
+function MapController({ workers, selectedWorkerId, onResetCenter, isNearestMode, onToggleNearestMode, clickedLocation, nearestWorkers, showTrail, trailData }) {
   const map = useMap();
 
   useEffect(() => {
     if (selectedWorkerId && workers[selectedWorkerId]) {
       const w = workers[selectedWorkerId];
       if (w.latitude != null && w.longitude != null) {
-        map.flyTo([w.latitude, w.longitude], 16, { animate: true, duration: 1.5 });
+        if (showTrail && trailData && trailData.coordinates && trailData.coordinates.length > 1) {
+          const trailCoords = trailData.coordinates.map(c => [c.lat, c.lng]);
+          const bounds = L.latLngBounds([...trailCoords, [w.latitude, w.longitude]]);
+          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16, animate: true, duration: 1.5 });
+        } else {
+          map.flyTo([w.latitude, w.longitude], 16, { animate: true, duration: 1.5 });
+        }
       }
     }
-  }, [selectedWorkerId, workers, map]);
+  }, [selectedWorkerId, workers, map, showTrail, trailData]);
 
   useEffect(() => {
     if (isNearestMode && clickedLocation && nearestWorkers && nearestWorkers.length > 0) {
@@ -206,49 +224,90 @@ export default function LiveTrackingDashboard() {
     // Initial fetch on change
     fetchTrail();
 
-    // Auto-refresh interval (5 seconds)
-    let intervalId;
-    const todayStr = new Date().toISOString().split('T')[0];
-    if (showTrail && selectedWorkerId && trailDate === todayStr) {
-      intervalId = setInterval(() => {
-        fetchTrail(true); // silent background refresh
-      }, 5000);
-    }
+    // The backend socket ('location:updated') handles live appends to the trail state.
+    // We no longer aggressively poll `fetchTrail(true)` every 5 seconds.
+    // This prevents array overwriting, flickering, and lost start markers.
 
     return () => {
-      if (intervalId) clearInterval(intervalId);
+      // Cleanup if needed in the future
     };
   }, [showTrail, selectedWorkerId, trailDate]);
 
   useEffect(() => {
     function handleLocationUpdate(data) {
       setWorkers(prev => {
-        const existing = prev[data.workerId] || {};
+        const existing = prev[data.workerId];
+        
+        // Validate live location updates (same rules as trail)
+        if (existing && existing.latitude != null && existing.longitude != null) {
+          const distanceKm = calculateDistanceKm(existing.latitude, existing.longitude, data.latitude, data.longitude);
+          
+          // Ignore micro-jitter (< 5 meters)
+          if (distanceKm > 0 && distanceKm < 0.005) {
+            return prev; // Ignore invalid ping
+          }
+          
+          // Ignore impossible GPS jumps (> 150 km/h)
+          if (existing.timestamp && data.timestamp) {
+            const timeDiffHours = (new Date(data.timestamp) - new Date(existing.timestamp)) / (1000 * 60 * 60);
+            if (timeDiffHours > 0) {
+              const speedKmh = distanceKm / timeDiffHours;
+              if (speedKmh > 150) {
+                return prev; // Ignore invalid ping
+              }
+            }
+          }
+        }
+
         return {
           ...prev,
           [data.workerId]: {
-            ...existing,
+            ...(existing || {}),
             ...data,
             // Keep original workerName, attendanceStatus, and geofence state if not provided
-            workerName: data.workerName || existing.workerName || 'Unknown Worker',
-            attendanceStatus: existing.attendanceStatus || 'Active',
-            currentGeofence: existing.currentGeofence || null,
-            geofenceArrivalTime: existing.geofenceArrivalTime || null
+            workerName: data.workerName || existing?.workerName || 'Unknown Worker',
+            attendanceStatus: existing?.attendanceStatus || 'Active',
+            currentGeofence: existing?.currentGeofence || null,
+            geofenceArrivalTime: existing?.geofenceArrivalTime || null
           }
         };
       });
 
-      // If trail is showing for this worker for TODAY, append the point
+      // If trail is showing for this worker for TODAY, append the point with validation
       if (showTrail && selectedWorkerId === data.workerId) {
         const todayStr = new Date().toISOString().split('T')[0];
         if (trailDate === todayStr) {
           setTrailData(prev => {
             if (!prev) return prev;
+            
+            const lastPoint = prev.coordinates.length > 0 ? prev.coordinates[prev.coordinates.length - 1] : null;
+            let distanceIncrement = 0;
+            
+            if (lastPoint) {
+              const distanceKm = calculateDistanceKm(lastPoint.lat, lastPoint.lng, data.latitude, data.longitude);
+              
+              // Ignore micro-jitter (< 5 meters)
+              if (distanceKm < 0.005) {
+                return prev;
+              }
+              
+              // Ignore impossible GPS jumps (> 150 km/h)
+              const timeDiffHours = (new Date(data.timestamp) - new Date(lastPoint.timestamp)) / (1000 * 60 * 60);
+              if (timeDiffHours > 0) {
+                const speedKmh = distanceKm / timeDiffHours;
+                if (speedKmh > 150) {
+                  return prev;
+                }
+              }
+              distanceIncrement = distanceKm;
+            }
+
             return {
               ...prev,
               coordinates: [...prev.coordinates, { lat: data.latitude, lng: data.longitude, timestamp: data.timestamp }],
               endTime: data.timestamp,
-              totalPoints: prev.totalPoints + 1
+              totalPoints: prev.totalPoints + 1,
+              totalDistance: prev.totalDistance + distanceIncrement
             };
           });
         }
@@ -722,32 +781,47 @@ export default function LiveTrackingDashboard() {
                     className="w-full text-sm h-9" 
                   />
                   
-                  {trailLoading ? (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium p-2">
-                      <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                      Loading trail data...
-                    </div>
-                  ) : trailData && trailData.coordinates.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="bg-background p-2.5 rounded-lg border border-border/50 shadow-sm flex flex-col gap-1">
-                        <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Distance</span>
-                        <span className="font-bold text-foreground">{trailData.totalDistance.toFixed(2)} km</span>
+                    {trailLoading ? (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium p-2">
+                        <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        Loading trail data...
                       </div>
-                      <div className="bg-background p-2.5 rounded-lg border border-border/50 shadow-sm flex flex-col gap-1">
-                        <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Points</span>
-                        <span className="font-bold text-foreground">{trailData.totalPoints} ping(s)</span>
+                    ) : !trailData || trailData.coordinates.length === 0 ? (
+                      <div className="text-xs text-muted-foreground bg-surface p-2.5 rounded-lg border border-border font-medium">
+                        No GPS history available.
                       </div>
-                      <div className="col-span-2 bg-background p-2.5 rounded-lg border border-border/50 shadow-sm flex flex-col gap-1">
-                        <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Last Updated</span>
-                        <span className="font-bold text-foreground">{new Date(trailData.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                    ) : trailData.coordinates.length === 1 ? (
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-background p-2.5 rounded-lg border border-border/50 shadow-sm flex flex-col gap-1">
+                          <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Distance</span>
+                          <span className="font-bold text-foreground">0 m</span>
+                        </div>
+                        <div className="bg-background p-2.5 rounded-lg border border-border/50 shadow-sm flex flex-col gap-1">
+                          <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Trail Points</span>
+                          <span className="font-bold text-foreground">1</span>
+                        </div>
+                        <div className="col-span-2 bg-background p-2.5 rounded-lg border border-border/50 shadow-sm flex flex-col gap-1">
+                          <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Status</span>
+                          <span className="font-bold text-warning">Worker stationary</span>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="text-xs text-destructive bg-destructive/10 p-2.5 rounded-lg border border-destructive/20 font-medium">
-                      No trail data found for this date.
-                    </div>
-                  )}
-                </motion.div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-background p-2.5 rounded-lg border border-border/50 shadow-sm flex flex-col gap-1">
+                          <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Distance</span>
+                          <span className="font-bold text-foreground">{trailData.totalDistance.toFixed(2)} km</span>
+                        </div>
+                        <div className="bg-background p-2.5 rounded-lg border border-border/50 shadow-sm flex flex-col gap-1">
+                          <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Points</span>
+                          <span className="font-bold text-foreground">{trailData.totalPoints} ping(s)</span>
+                        </div>
+                        <div className="col-span-2 bg-background p-2.5 rounded-lg border border-border/50 shadow-sm flex flex-col gap-1">
+                          <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Last Updated</span>
+                          <span className="font-bold text-foreground">{new Date(trailData.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
               )}
             </div>
             <WorkerDailySummaryCard 
@@ -767,16 +841,18 @@ export default function LiveTrackingDashboard() {
             </div>
           )}
           <LiveMap center={INDIA_CENTER} zoom={DEFAULT_ZOOM}>
-            <MapController 
-              workers={workers} 
-              selectedWorkerId={selectedWorkerId} 
-              onResetCenter={() => setSelectedWorkerId(null)} 
-              isNearestMode={isNearestMode}
-              onToggleNearestMode={() => {
-                setIsNearestMode(!isNearestMode);
-                if (isNearestMode) clearNearestSearch();
-              }}
-            />
+              <MapController 
+                workers={workers} 
+                selectedWorkerId={selectedWorkerId} 
+                onResetCenter={() => setSelectedWorkerId(null)} 
+                isNearestMode={isNearestMode}
+                onToggleNearestMode={() => {
+                  setIsNearestMode(!isNearestMode);
+                  if (isNearestMode) clearNearestSearch();
+                }}
+                showTrail={showTrail}
+                trailData={trailData}
+              />
             <WorkerTrailMapLayer trailData={trailData} isVisible={showTrail} />
             <NearestWorkerFinder 
               isNearestMode={isNearestMode}

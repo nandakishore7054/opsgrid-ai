@@ -57,6 +57,28 @@ const authSchema = new mongoose.Schema(
       ref: 'Shift',
       default: null,
     },
+    // Live tracking operational fields
+    currentLocation: {
+      type: {
+        type: String,
+        enum: ['Point'],
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+      },
+    },
+    lastPing: {
+      type: Date,
+      default: null,
+    },
+    batteryLevel: {
+      type: Number,
+      default: null,
+    },
+    accuracy: {
+      type: Number,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -64,5 +86,6 @@ const authSchema = new mongoose.Schema(
 );
 
 authSchema.index({ role: 1, status: 1 });
+authSchema.index({ currentLocation: '2dsphere' });
 
 module.exports = mongoose.model('User', authSchema);

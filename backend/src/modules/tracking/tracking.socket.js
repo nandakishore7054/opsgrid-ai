@@ -1,6 +1,8 @@
 const trackingService = require('./tracking.service');
 const { parseLocation } = require('./tracking.validation');
 const geofenceService = require('./geofence.service');
+const { isValidGPSUpdate } = require('../../core/utils/distance.util');
+const User = require('../auth/auth.model');
 
 // Throttling map: workerId -> last timestamp
 const lastUpdateMap = new Map();
@@ -38,26 +40,82 @@ function setupTrackingSockets(io) {
           return;
         }
         
-        console.log(`[TRACE: SOCKET] Location received for worker ${workerIdStr}:`, parsed.data);
-        // Update latest location in DB
-        const record = await trackingService.saveLocation(workerIdStr, parsed.data);
-        console.log(`[TRACE: DB] Location saved to DB for worker ${workerIdStr}. Timestamp:`, record.timestamp);
-        
-        // Broadcast to admin room — use the verified identity
-        io.to('admin').emit('location:updated', {
-          workerId: workerIdStr,
-          workerName: socket.user.name,
-          latitude: parsed.data.latitude,
-          longitude: parsed.data.longitude,
-          timestamp: record.timestamp,
-        });
+        const user = await User.findById(workerIdStr);
+        if (!user) return;
 
-        // Trigger geofence logic async
-        console.log(`[TRACE: GEOFENCE] Triggering checkGeofenceTransitions for worker ${workerIdStr}`);
-        geofenceService.checkGeofenceTransitions(workerIdStr, parsed.data).catch(err => {
-          console.error('[TRACE: ERROR] Geofence check error:', err);
-        });
-        
+        const incomingTimestamp = parsed.data.timestamp || new Date();
+        const incomingLat = parsed.data.latitude;
+        const incomingLng = parsed.data.longitude;
+
+        const newPoint = {
+          location: { coordinates: [incomingLng, incomingLat] },
+          timestamp: incomingTimestamp
+        };
+
+        let lastValidPoint = null;
+        if (user.currentLocation && user.currentLocation.coordinates && user.currentLocation.coordinates.length === 2) {
+          lastValidPoint = {
+            location: user.currentLocation,
+            timestamp: user.lastPing
+          };
+        }
+
+        const validation = isValidGPSUpdate(lastValidPoint, newPoint, 'socket');
+
+        const updatePayload = {
+          lastPing: new Date(),
+          batteryLevel: parsed.data.batteryLevel !== undefined ? parsed.data.batteryLevel : user.batteryLevel,
+          accuracy: parsed.data.accuracy !== undefined ? parsed.data.accuracy : user.accuracy
+        };
+
+        if (validation.isValid) {
+          // Case 1: Valid Movement
+          updatePayload.currentLocation = {
+            type: 'Point',
+            coordinates: [incomingLng, incomingLat]
+          };
+          await User.updateOne({ _id: workerIdStr }, { $set: updatePayload });
+
+          const record = await trackingService.saveLocation(workerIdStr, parsed.data);
+          
+          io.to('admin').emit('location:updated', {
+            workerId: workerIdStr,
+            workerName: socket.user.name,
+            latitude: incomingLat,
+            longitude: incomingLng,
+            timestamp: record.timestamp,
+          });
+
+          geofenceService.checkGeofenceTransitions(workerIdStr, parsed.data).catch(err => {
+            console.error('[TRACE: ERROR] Geofence check error:', err);
+          });
+        } else if (validation.reason === 'stationary') {
+          // Case 2: Stationary (<5m)
+          await User.updateOne({ _id: workerIdStr }, { $set: updatePayload });
+
+          if (user.currentLocation && user.currentLocation.coordinates) {
+            io.to('admin').emit('location:updated', {
+              workerId: workerIdStr,
+              workerName: socket.user.name,
+              latitude: user.currentLocation.coordinates[1],
+              longitude: user.currentLocation.coordinates[0],
+              timestamp: updatePayload.lastPing,
+            });
+          }
+        } else {
+          // Case 3: Impossible Jump
+          await User.updateOne({ _id: workerIdStr }, { $set: updatePayload });
+
+          if (user.currentLocation && user.currentLocation.coordinates) {
+            io.to('admin').emit('location:updated', {
+              workerId: workerIdStr,
+              workerName: socket.user.name,
+              latitude: user.currentLocation.coordinates[1],
+              longitude: user.currentLocation.coordinates[0],
+              timestamp: updatePayload.lastPing,
+            });
+          }
+        }
       } catch (err) {
         console.error('Socket tracking error:', err.message);
       }

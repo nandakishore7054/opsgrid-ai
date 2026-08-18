@@ -64,9 +64,9 @@ export default function ForgotPassword() {
           </Link>
         </motion.div>
       ) : (
-        <form className="space-y-5" onSubmit={handleSubmit} noValidate>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Email</label>
+        <form className="space-y-6" onSubmit={handleSubmit} noValidate>
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Email Address</label>
             <Input
               type="email"
               value={email}
@@ -74,6 +74,7 @@ export default function ForgotPassword() {
               placeholder="you@example.com"
               leftIcon={<Mail className="w-4 h-4" />}
               error={error}
+              className="h-12 bg-surface-muted/50 border-border/50 focus:bg-background"
             />
           </div>
 
@@ -83,9 +84,9 @@ export default function ForgotPassword() {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="rounded-lg bg-destructive/10 px-4 py-3 border border-destructive/20 text-sm text-destructive"
+                className="rounded-xl bg-destructive/10 px-4 py-3 border border-destructive/20 text-sm text-destructive flex items-start gap-3"
               >
-                {serverMessage}
+                <span>{serverMessage}</span>
               </motion.div>
             )}
           </AnimatePresence>
@@ -93,15 +94,15 @@ export default function ForgotPassword() {
           <Button
             type="submit"
             isLoading={isSubmitting}
-            className="w-full mt-2"
+            className="w-full mt-2 h-12 text-base shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all font-bold"
             size="lg"
           >
-            Send reset link
+            Send Reset Link
           </Button>
           
-          <div className="mt-6 text-center">
-            <Link to="/login" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
-              Cancel
+          <div className="mt-8 text-center">
+            <Link to="/login" className="text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
+              Return to login
             </Link>
           </div>
         </form>

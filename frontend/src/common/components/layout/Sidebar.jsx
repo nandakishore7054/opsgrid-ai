@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, 
@@ -13,11 +13,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
-  X,
-  Compass
+  X
 } from 'lucide-react';
 import { useAuth } from '../../../app/auth-context';
 import { cn } from '../ui/utils';
+import { Logo } from '../branding/Logo';
 
 const navGroups = [
   {
@@ -65,29 +65,14 @@ export default function Sidebar({ isMobileOpen, setIsMobileOpen }) {
   // Sidebar content (Shared between Desktop and Mobile)
   const SidebarContent = () => (
     <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden custom-scrollbar">
-      {/* Logo Area */}
+      {/* Brand Logo Area */}
       <div className={cn(
-        "flex items-center h-16 flex-shrink-0 px-4 transition-all duration-300",
+        "flex items-center h-16 flex-shrink-0 px-4 transition-all duration-300 border-b border-border/50",
         isCollapsed ? "justify-center" : "justify-between"
       )}>
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary flex-shrink-0">
-            <Compass className="w-5 h-5" />
-          </div>
-          <AnimatePresence initial={false}>
-            {!isCollapsed && (
-              <motion.div
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: 'auto' }}
-                exit={{ opacity: 0, width: 0 }}
-                transition={{ duration: 0.2 }}
-                className="whitespace-nowrap font-bold text-foreground tracking-tight"
-              >
-                OpsGrid
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        <Link to="/admin/dashboard" className="flex items-center gap-2.5 overflow-hidden">
+          <Logo variant={isCollapsed ? "mark" : "full"} size="md" />
+        </Link>
         
         {/* Desktop Collapse Toggle */}
         <button
@@ -118,93 +103,99 @@ export default function Sidebar({ isMobileOpen, setIsMobileOpen }) {
           return (
             <div key={groupIdx} className="space-y-1">
               {!isCollapsed && (
-                <motion.p 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 mb-2"
-                >
+                <h3 className="px-3 text-xs font-bold uppercase tracking-wider text-muted-foreground/70 mb-2">
                   {group.title}
-                </motion.p>
+                </h3>
               )}
-              {group.items.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setIsMobileOpen(false)} // Close on mobile click
-                  className={({ isActive }) => cn(
-                    "group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-200",
-                    isActive 
-                      ? "bg-primary/10 text-primary" 
-                      : "text-muted-foreground hover:bg-surface-hover hover:text-foreground"
-                  )}
-                >
-                  <item.icon className="w-5 h-5 flex-shrink-0" />
-                  
-                  <AnimatePresence initial={false}>
-                    {!isCollapsed && (
-                      <motion.span
-                        initial={{ opacity: 0, width: 0 }}
-                        animate={{ opacity: 1, width: 'auto' }}
-                        exit={{ opacity: 0, width: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="whitespace-nowrap"
-                      >
-                        {item.label}
-                      </motion.span>
+              
+              <div className="space-y-1">
+                {group.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end
+                    onClick={() => setIsMobileOpen(false)}
+                    className={({ isActive }) => cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 group relative",
+                      isActive 
+                        ? "bg-primary text-primary-foreground shadow-xs font-bold" 
+                        : "text-muted-foreground hover:bg-surface-muted hover:text-foreground",
+                      isCollapsed && "justify-center px-0 py-2.5"
                     )}
-                  </AnimatePresence>
+                  >
+                    <item.icon className={cn("w-4 h-4 flex-shrink-0 transition-transform group-hover:scale-110 duration-200")} />
+                    
+                    {!isCollapsed && (
+                      <span className="truncate">{item.label}</span>
+                    )}
 
-                  {/* Tooltip for collapsed mode */}
-                  {isCollapsed && (
-                    <div className="absolute left-full ml-2 hidden px-2 py-1 bg-foreground text-background text-xs rounded-md shadow-lg group-hover:block z-50 whitespace-nowrap">
-                      {item.label}
-                    </div>
-                  )}
-                </NavLink>
-              ))}
+                    {/* Tooltip for collapsed state */}
+                    {isCollapsed && (
+                      <div className="absolute left-full ml-2.5 px-2.5 py-1 bg-surface border border-border text-foreground text-xs rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap font-medium">
+                        {item.label}
+                      </div>
+                    )}
+                  </NavLink>
+                ))}
+              </div>
             </div>
           );
         })}
       </nav>
+
+      {/* Footer Profile / Quick Info */}
+      <div className={cn(
+        "p-3 border-t border-border/60 bg-surface-muted/20 flex items-center gap-3",
+        isCollapsed ? "justify-center" : "justify-start"
+      )}>
+        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+          {user?.name?.[0]?.toUpperCase() || 'A'}
+        </div>
+        {!isCollapsed && (
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold text-foreground truncate">{user?.name || 'Administrator'}</p>
+            <p className="text-[10px] text-muted-foreground truncate uppercase font-semibold">{user?.role || 'Admin'}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 
   return (
     <>
-      {/* Desktop Sidebar */}
-      <motion.aside
-        initial={false}
-        animate={{ width: isCollapsed ? 72 : 256 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-        className="hidden lg:block relative z-30 h-screen border-r border-border bg-surface flex-shrink-0"
+      {/* Desktop Sticky Sidebar */}
+      <aside 
+        className={cn(
+          "hidden lg:flex flex-col border-r border-border bg-surface transition-all duration-300 z-20 h-screen sticky top-0",
+          isCollapsed ? "w-16" : "w-64"
+        )}
       >
         <SidebarContent />
-      </motion.aside>
+      </aside>
 
-      {/* Mobile Drawer */}
+      {/* Mobile Drawer Navigation */}
       <AnimatePresence>
         {isMobileOpen && (
           <>
+            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm lg:hidden"
               onClick={() => setIsMobileOpen(false)}
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
             />
-            <motion.aside
+
+            {/* Slide-over Drawer */}
+            <motion.div
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-              className="fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r border-border lg:hidden shadow-2xl"
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 left-0 w-72 bg-surface border-r border-border z-50 lg:hidden shadow-2xl"
             >
-              {/* Force not collapsed on mobile */}
-              <div className="h-full" style={{ width: '100%' }}>
-                 <SidebarContent />
-              </div>
-            </motion.aside>
+              <SidebarContent />
+            </motion.div>
           </>
         )}
       </AnimatePresence>

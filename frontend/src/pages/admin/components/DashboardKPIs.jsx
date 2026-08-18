@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, WifiOff, CalendarCheck, CheckSquare, Building, Clock, Route, Activity } from 'lucide-react';
+import { Users, CalendarCheck, Building, Route, WifiOff, CheckCircle2 } from 'lucide-react';
 import api from '../../../app/api';
-import { Card } from '../../../common/components/ui/Card';
+import { StatCard } from '../../../common/components/ui/StatCard';
 import { AnimatedCounter } from '../../../common/components/ui/AnimatedCounter';
+import { Badge } from '../../../common/components/ui/Badge';
 
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1
+      staggerChildren: 0.08
     }
   }
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 15 },
   visible: { 
     opacity: 1, 
     y: 0,
@@ -50,85 +51,83 @@ export default function DashboardKPIs() {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-4 text-destructive">
+      <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-4 text-destructive text-sm font-medium">
         <p>{error}</p>
       </div>
     );
   }
 
+  const activeCount = data?.workforce?.activeWorkers ?? 0;
+  const offlineCount = data?.workforce?.offlineWorkers ?? 0;
+  const presentCount = data?.attendance?.presentToday ?? 0;
+  const visitsCount = data?.customer?.customerVisitsToday ?? 0;
+  const distanceKm = typeof data?.productivity?.totalDistanceToday === 'number' 
+    ? data.productivity.totalDistanceToday 
+    : parseFloat(data?.productivity?.totalDistanceToday || '0');
+
+  // Calculate attendance percentage if total active workers exists
+  const attendanceRate = activeCount > 0 
+    ? Math.min(100, Math.round((presentCount / activeCount) * 100)) 
+    : null;
+
   const kpis = [
     { 
-      label: 'Active Workers', 
-      value: data?.workforce?.activeWorkers, 
+      label: 'Active Workforce', 
+      value: activeCount, 
       icon: Users,
-      colorClass: 'text-primary',
-      bgClass: 'bg-primary/10',
-      trend: '+12%',
-      trendUp: true,
-    },
-    { 
-      label: 'Offline Workers', 
-      value: data?.workforce?.offlineWorkers, 
-      icon: WifiOff,
-      colorClass: 'text-muted-foreground',
-      bgClass: 'bg-muted/20',
-      trend: '-2%',
-      trendUp: false,
+      colorScheme: 'primary',
+      subtitle: offlineCount > 0 ? `${offlineCount} worker(s) offline` : 'All assigned workers active',
+      badge: offlineCount > 0 ? (
+        <Badge variant="warning" className="text-[10px] px-1.5 py-0">
+          <WifiOff className="w-3 h-3 mr-1 inline" /> {offlineCount} Offline
+        </Badge>
+      ) : (
+        <Badge variant="success" className="text-[10px] px-1.5 py-0">
+          <CheckCircle2 className="w-3 h-3 mr-1 inline" /> 100% Online
+        </Badge>
+      ),
+      progress: null
     },
     { 
       label: 'Present Today', 
-      value: data?.attendance?.presentToday, 
+      value: presentCount, 
       icon: CalendarCheck,
-      colorClass: 'text-info',
-      bgClass: 'bg-info/10',
-      trend: '+5%',
-      trendUp: true,
+      colorScheme: 'info',
+      subtitle: attendanceRate !== null ? `${attendanceRate}% verified attendance rate` : 'Shift check-ins today',
+      badge: attendanceRate !== null ? (
+        <Badge variant="info" className="text-[10px] px-1.5 py-0">
+          {attendanceRate}%
+        </Badge>
+      ) : null,
+      progress: attendanceRate
     },
     { 
-      label: 'Completed Shifts', 
-      value: data?.attendance?.completedShifts, 
-      icon: CheckSquare,
-      colorClass: 'text-success',
-      bgClass: 'bg-success/10',
-      trend: '+18%',
-      trendUp: true,
-    },
-    { 
-      label: 'Customer Visits', 
-      value: data?.customer?.customerVisitsToday, 
+      label: 'Customer Visits Today', 
+      value: visitsCount, 
       icon: Building,
-      colorClass: 'text-warning',
-      bgClass: 'bg-warning/10',
-      trend: '+8%',
-      trendUp: true,
+      colorScheme: 'warning',
+      subtitle: 'Deterministic geofence arrival logs',
+      badge: (
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+          Automated
+        </Badge>
+      ),
+      progress: null
     },
     { 
-      label: 'Avg Visit Duration (m)', 
-      value: data?.customer?.averageVisitDuration, 
-      icon: Clock,
-      colorClass: 'text-amber-500',
-      bgClass: 'bg-amber-500/10',
-      trend: '-1%',
-      trendUp: true,
-    },
-    { 
-      label: 'Total Distance (km)', 
-      value: data?.productivity?.totalDistanceToday, 
+      label: 'Total Distance Travelled', 
+      value: `${distanceKm.toFixed(1)} km`, 
       icon: Route,
-      colorClass: 'text-fuchsia-500',
-      bgClass: 'bg-fuchsia-500/10',
-      trend: '+22%',
-      trendUp: true,
-    },
-    { 
-      label: 'Avg Working Hours', 
-      value: data?.attendance?.averageWorkingHours, 
-      icon: Activity,
-      colorClass: 'text-violet-500',
-      bgClass: 'bg-violet-500/10',
-      trend: '+2%',
-      trendUp: true,
-    },
+      colorScheme: 'success',
+      subtitle: 'Haversine calculated travel today',
+      badge: (
+        <Badge variant="success" className="text-[10px] px-1.5 py-0">
+          Telemetry
+        </Badge>
+      ),
+      progress: null,
+      isStringValue: true
+    }
   ];
 
   return (
@@ -136,41 +135,33 @@ export default function DashboardKPIs() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+      className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 min-w-0 w-full"
     >
       {kpis.map((kpi, index) => {
         const Icon = kpi.icon;
         return (
-          <motion.div key={index} variants={itemVariants}>
-            <Card variant="interactive" className="relative overflow-hidden group p-5 border-border/50 bg-gradient-to-b from-surface to-surface/50">
-              {/* Subtle background glow effect */}
-              <div className={`absolute -right-4 -top-4 w-24 h-24 rounded-full blur-2xl opacity-0 group-hover:opacity-20 transition-opacity duration-500 ${kpi.bgClass}`} />
-              
-              <div className="flex justify-between items-start mb-4 relative z-10">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${kpi.bgClass} ${kpi.colorClass}`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                {/* Simulated Trend Indicator */}
-                {!loading && data && (
-                  <div className={`text-xs font-semibold px-2 py-1 rounded-full ${kpi.trendUp ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
-                    {kpi.trend}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-1 relative z-10">
-                <h3 className="text-sm font-medium text-muted-foreground">{kpi.label}</h3>
-                <div className="h-9 flex items-center">
-                  {loading && !data ? (
-                    <div className="h-7 w-20 bg-muted rounded animate-pulse" />
+          <motion.div key={index} variants={itemVariants} className="min-w-0 flex">
+            <StatCard 
+              title={kpi.label}
+              value={
+                loading && !data ? '' : (
+                  kpi.isStringValue ? (
+                    <span>{kpi.value}</span>
                   ) : (
-                    <div className="text-3xl font-bold tracking-tight text-foreground flex items-baseline gap-1">
-                      <AnimatedCounter value={kpi.value ?? 0} />
+                    <div className="flex items-baseline gap-1">
+                      <AnimatedCounter value={Number(kpi.value) || 0} />
                     </div>
-                  )}
-                </div>
-              </div>
-            </Card>
+                  )
+                )
+              }
+              icon={Icon}
+              subtitle={kpi.subtitle}
+              badge={kpi.badge}
+              progress={kpi.progress}
+              variant="interactive"
+              colorScheme={kpi.colorScheme}
+              loading={loading && !data}
+            />
           </motion.div>
         );
       })}

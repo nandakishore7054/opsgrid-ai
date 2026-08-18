@@ -1,40 +1,69 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Navigation, Map, ShieldAlert, ClipboardList, Users, 
-  CalendarCheck, CalendarOff, Radio, PieChart, Route, 
-  BrainCircuit, Bell, Smartphone, Lock, Cpu
+  Navigation, 
+  Map, 
+  ShieldAlert, 
+  ClipboardList, 
+  Radio, 
+  Route, 
+  BrainCircuit, 
+  Lock,
+  Layers,
+  ArrowUpRight
 } from 'lucide-react';
+import { Badge } from '../../common/components/ui/Badge';
 
-const features = [
-  { icon: Navigation, title: 'Live GPS Tracking', desc: 'Monitor your workforce in real-time on a live interactive dashboard.' },
-  { icon: Map, title: 'Interactive Maps', desc: 'Detailed geographic visualization with historical path trails and worker pins.' },
-  { icon: ShieldAlert, title: 'Geofencing', desc: 'Draw virtual boundaries to automatically verify job site attendance.' },
-  { icon: ClipboardList, title: 'Smart Task Management', desc: 'Dispatch tasks to the nearest available worker with a click.' },
-  { icon: Users, title: 'User & Role Management', desc: 'Securely manage Admin, Dispatcher, and Worker privileges.' },
-  { icon: CalendarCheck, title: 'Attendance Management', desc: 'Automated shift tracking driven by physical GPS verification.' },
-  { icon: CalendarOff, title: 'Leave Management', desc: 'Streamlined time-off requests directly from the mobile app.' },
-  { icon: Radio, title: 'Real-Time Socket Communication', desc: 'Low-latency bidirectional streaming ensures no manual page refreshes.' },
-  { icon: PieChart, title: 'Dashboard Analytics', desc: 'Visualize key performance indicators and operational metrics instantly.' },
-  { icon: Route, title: 'Distance Analytics', desc: 'Accurate Haversine-based calculations for travel tracking and reimbursements.' },
-  { icon: BrainCircuit, title: 'AI Operations Summary', desc: 'Generative AI synthesizes thousands of telemetry points into human-readable reports.' },
-  { icon: Bell, title: 'Notifications', desc: 'Instant alerts for task assignments, geofence breaches, and system updates.' },
-  { icon: Smartphone, title: 'Progressive Web App', desc: 'Lightweight, installable mobile experience optimized for battery life.' },
-  { icon: Lock, title: 'JWT Authentication', desc: 'Stateless, cryptographically secure session management.' },
-  { icon: Cpu, title: 'Groq + Gemini AI Integration', desc: 'High-speed Llama 3 inference with automated Google Gemini failover.' },
+const coreFeatures = [
+  {
+    icon: Navigation,
+    badge: 'Telemetry',
+    title: 'Live GPS Telemetry Stream',
+    desc: 'High-frequency coordinate streaming via WebSockets with automatic jitter suppression and intelligent speed jump rejection.'
+  },
+  {
+    icon: ShieldAlert,
+    badge: 'Spatial GIS',
+    title: 'Polygon Geofencing Engine',
+    desc: 'Mathematical point-in-polygon boundary detection for real-time site arrival, departure, and customer visit lifecycle tracking.'
+  },
+  {
+    icon: ClipboardList,
+    badge: 'Dispatching',
+    title: 'Proximity Task Allocation',
+    desc: 'Assign field work orders to the closest available technician based on live coordinates, reducing travel overhead and response time.'
+  },
+  {
+    icon: Route,
+    badge: 'Distance Engine',
+    title: 'Haversine Route Analytics',
+    desc: 'Accurate spherical distance computations generate authentic travel logs for operational oversight and mileage audits.'
+  },
+  {
+    icon: BrainCircuit,
+    badge: 'Intelligence',
+    title: 'Automated AI Shift Reports',
+    desc: 'LLM inference engine aggregates raw operational telemetry into human-readable executive summaries at the close of every shift.'
+  },
+  {
+    icon: Lock,
+    badge: 'Security',
+    title: 'Role-Based Access Control',
+    desc: 'Stateless cryptographic JWT authentication with strict role segregation across Administrators, Dispatchers, and Field Technicians.'
+  }
 ];
 
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.1 }
+    transition: { staggerChildren: 0.08 }
   }
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" } }
 };
 
 export default function FeaturesSection() {
@@ -42,38 +71,57 @@ export default function FeaturesSection() {
     <section className="py-24 relative overflow-hidden bg-background">
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         
-        <div className="text-center max-w-3xl mx-auto mb-20">
-          <h2 className="text-sm font-bold tracking-widest text-primary uppercase mb-3">Platform Capabilities</h2>
-          <h3 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-6">Everything you need to scale operations.</h3>
-          <p className="text-lg text-muted-foreground">
-            A comprehensive suite of tools built specifically for modern, distributed workforces. No bloated features—just exactly what you need.
+        {/* Section Header */}
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <Badge variant="primary" className="mb-3 uppercase tracking-wider text-xs">
+            Core Architecture
+          </Badge>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-foreground mb-4">
+            Built for Precision at Enterprise Scale.
+          </h2>
+          <p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
+            Every feature is engineered for operational speed, deterministic spatial accuracy, and seamless team collaboration.
           </p>
         </div>
 
+        {/* Features Grid */}
         <motion.div 
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
+          viewport={{ once: true, margin: "-80px" }}
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
         >
-          {features.map((feature, idx) => (
+          {coreFeatures.map((feature, idx) => (
             <motion.div 
               key={idx}
               variants={itemVariants}
-              className="group relative p-6 rounded-2xl bg-surface border border-border shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 overflow-hidden"
+              className="group relative p-7 rounded-2xl bg-surface border border-border shadow-sm hover:border-primary/50 hover:shadow-md transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between"
             >
-              {/* Subtle hover gradient background */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              {/* Subtle top corner gradient highlight */}
+              <div className="absolute top-0 right-0 w-28 h-28 bg-gradient-to-bl from-primary/10 via-transparent to-transparent rounded-tr-2xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               
-              <div className="relative z-10">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                  <feature.icon className="w-6 h-6 text-primary" />
+              <div>
+                <div className="flex items-center justify-between mb-5">
+                  <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                    <feature.icon className="w-5 h-5" />
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-semibold">
+                    {feature.badge}
+                  </Badge>
                 </div>
-                <h4 className="text-xl font-bold mb-3 tracking-tight">{feature.title}</h4>
-                <p className="text-muted-foreground text-sm leading-relaxed">
+
+                <h3 className="text-lg font-bold text-foreground mb-2.5 tracking-tight group-hover:text-primary transition-colors">
+                  {feature.title}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   {feature.desc}
                 </p>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-border/60 flex items-center text-xs font-semibold text-primary opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <span>Explore capability</span>
+                <ArrowUpRight className="w-3.5 h-3.5 ml-1" />
               </div>
             </motion.div>
           ))}

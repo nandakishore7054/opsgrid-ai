@@ -1,5 +1,5 @@
-import React from 'react';
-import { MapContainer, TileLayer } from 'react-leaflet';
+import React, { useEffect } from 'react';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
 // Import Leaflet CSS
@@ -23,30 +23,76 @@ let DefaultIcon = L.icon({
 L.Marker.prototype.options.icon = DefaultIcon;
 
 /**
- * LiveMap component serving as the base infrastructure for Milestone 4.
- * Fills the parent container (100% width/height).
- * Includes OpenStreetMap tiles, zoom, and pan support.
+ * Ensures Leaflet recalculates tile bounds and layout whenever the container
+ * resizes, transitions between responsive breakpoints, or unhides.
+ */
+function MapResizeHandler() {
+  const map = useMap();
+
+  useEffect(() => {
+    // Initial size validation after mount
+    const timer1 = setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+
+    const timer2 = setTimeout(() => {
+      map.invalidateSize();
+    }, 400);
+
+    const handleResize = () => {
+      map.invalidateSize();
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    let resizeObserver;
+    const container = map.getContainer();
+    if (typeof ResizeObserver !== 'undefined' && container) {
+      resizeObserver = new ResizeObserver(() => {
+        map.invalidateSize();
+      });
+      resizeObserver.observe(container);
+    }
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      window.removeEventListener('resize', handleResize);
+      if (resizeObserver) resizeObserver.disconnect();
+    };
+  }, [map]);
+
+  return null;
+}
+
+/**
+ * LiveMap component serving as the base infrastructure.
+ * Fills the parent container with responsive fallback heights.
+ * Includes OpenStreetMap tiles, zoom, pan support, and automated resize observer.
  */
 export default function LiveMap({
-  center = [37.7749, -122.4194], // Default to SF
+  center = [37.7749, -122.4194],
   zoom = 13,
   children,
   className = '',
   style = {}
 }) {
   return (
-    <div className={`w-full h-full relative ${className}`} style={{ minHeight: '400px', ...style }}>
+    <div 
+      className={`w-full h-full min-h-[420px] sm:min-h-[500px] lg:min-h-full flex-1 flex flex-col relative ${className}`} 
+      style={{ minHeight: '420px', ...style }}
+    >
       <MapContainer
         center={center}
         zoom={zoom}
-        style={{ width: '100%', height: '100%' }}
+        style={{ width: '100%', height: '100%', minHeight: '420px', flex: '1 1 auto' }}
         zoomControl={true}
       >
+        <MapResizeHandler />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {/* Child components like markers, polygons, heatmaps will be injected here in later milestones */}
         {children}
       </MapContainer>
     </div>

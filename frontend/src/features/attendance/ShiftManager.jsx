@@ -7,6 +7,8 @@ import { Button } from '../../common/components/ui/Button';
 import { Skeleton } from '../../common/components/ui/Skeleton';
 import { motion } from 'framer-motion';
 import { Pencil, Trash2, Clock, Users, ShieldAlert, Plus, Check } from 'lucide-react';
+import { AlertDialog } from '../../common/components/ui/AlertDialog';
+import { Select } from '../../common/components/ui/Select';
 
 export default function ShiftManager() {
   const [shifts, setShifts] = useState([]);
@@ -15,6 +17,7 @@ export default function ShiftManager() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [activeWorkers, setActiveWorkers] = useState([]);
+  const [alertConfig, setAlertConfig] = useState({ isOpen: false });
 
   const fetchShifts = async () => {
     try {
@@ -90,15 +93,24 @@ export default function ShiftManager() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this shift?')) return;
-    try {
-      await api.delete(`/shifts/${id}`);
-      toast.success('Shift deleted');
-      fetchShifts();
-    } catch (error) {
-      toast.error('Failed to delete shift');
-    }
+  const handleDelete = (id) => {
+    setAlertConfig({
+      isOpen: true,
+      title: 'Delete Shift',
+      description: 'Are you sure you want to delete this shift?',
+      intent: 'danger',
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        setAlertConfig({ isOpen: false });
+        try {
+          await api.delete(`/shifts/${id}`);
+          toast.success('Shift deleted');
+          fetchShifts();
+        } catch (error) {
+          toast.error('Failed to delete shift');
+        }
+      }
+    });
   };
 
   if (loading) {
@@ -188,19 +200,17 @@ export default function ShiftManager() {
               <Users className="w-4 h-4 text-muted-foreground" /> Assign Workers
             </label>
             <div className="relative">
-              <select
+              <Select
                 multiple
                 name="workers"
                 value={formState.workers}
                 onChange={handleWorkerChange}
-                className="w-full h-40 rounded-xl border border-input bg-background px-4 py-3 text-foreground outline-none focus:ring-2 focus:ring-ring focus:border-input shadow-sm custom-scrollbar transition-all"
-              >
-                {activeWorkers.map(worker => (
-                  <option key={worker._id} value={worker._id} className="py-2 px-3 rounded-md hover:bg-surface-muted/50 mb-1 cursor-pointer">
-                    {worker.name} ({worker.email})
-                  </option>
-                ))}
-              </select>
+                className="!h-40 py-3"
+                options={activeWorkers.map(worker => ({
+                  value: worker._id,
+                  label: `${worker.name} (${worker.email})`
+                }))}
+              />
             </div>
             <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
               <span className="inline-block px-1.5 py-0.5 rounded bg-surface-muted text-[10px] font-mono border border-border">Ctrl</span> or <span className="inline-block px-1.5 py-0.5 rounded bg-surface-muted text-[10px] font-mono border border-border">Cmd</span> + click to select multiple workers.
@@ -302,6 +312,16 @@ export default function ShiftManager() {
           </div>
         )}
       </div>
+
+      <AlertDialog 
+        isOpen={alertConfig.isOpen}
+        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+        title={alertConfig.title}
+        description={alertConfig.description}
+        intent={alertConfig.intent}
+        confirmLabel={alertConfig.confirmLabel}
+        onConfirm={alertConfig.onConfirm}
+      />
     </div>
   );
 }

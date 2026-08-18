@@ -4,6 +4,7 @@ const User = require('../auth/auth.model');
 const Notification = require('../notifications/notifications.model');
 const Geofence = require('../tracking/geofence.model');
 const turf = require('@turf/turf');
+const CustomerVisit = require('../tracking/customerVisit.model');
 
 const { getStartOfDay, getEndOfDay } = require('../../core/utils/date.util');
 
@@ -170,6 +171,19 @@ async function checkOut(workerId, payload) {
   record.overtime = parseFloat(overtime.toFixed(2));
 
   await record.save();
+
+  // Checkout cleanup: Close any active CustomerVisits for this worker
+  try {
+    const activeVisits = await CustomerVisit.find({ workerId, departureTime: null });
+    for (const visit of activeVisits) {
+      visit.departureTime = now;
+      visit.durationMs = Math.max(0, now.getTime() - visit.arrivalTime.getTime());
+      await visit.save();
+      console.log(`[DEBUG] Checkout Cleanup: Closed CustomerVisit ${visit._id} for worker ${workerId}`);
+    }
+  } catch (err) {
+    console.error(`[ERROR] Failed to cleanup CustomerVisits during checkout for worker ${workerId}:`, err.message || err);
+  }
 
   const worker = await User.findById(workerId).select('name');
 

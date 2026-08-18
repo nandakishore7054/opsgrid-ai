@@ -6,12 +6,14 @@ import { Badge } from '../../common/components/ui/Badge';
 import { Button } from '../../common/components/ui/Button';
 import { Skeleton } from '../../common/components/ui/Skeleton';
 import { EmptyState } from '../../common/components/ui/EmptyState';
-import { CalendarOff, CheckCircle2, XCircle, Info, FileText } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { DataTable } from '../../common/components/ui/DataTable';
+import { Avatar } from '../../common/components/ui/Avatar';
+import { CalendarOff, CheckCircle2, XCircle, Calendar, Clock, FileText, Check, X } from 'lucide-react';
 
-export default function LeaveRequestList({ isAdmin = false, refreshTrigger = 0 }) {
+export default function LeaveRequestList({ isAdmin = false, refreshTrigger = 0, onStatusUpdated }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionId, setActionId] = useState(null);
 
   useEffect(() => {
     fetchRequests();
@@ -22,7 +24,15 @@ export default function LeaveRequestList({ isAdmin = false, refreshTrigger = 0 }
       setLoading(true);
       const endpoint = isAdmin ? '/leave-requests' : '/leave-requests/me';
       const res = await api.get(endpoint);
-      setRequests(res.data.data || []);
+      const data = res.data?.data || [];
+      
+      // Sort to prioritize pending requests, then by creation date descending
+      const sorted = [...data].sort((a, b) => {
+        if (a.status === 'pending' && b.status !== 'pending') return -1;
+        if (b.status === 'pending' && a.status !== 'pending') return 1;
+        return new Date(b.createdAt || b.startDate) - new Date(a.createdAt || a.startDate);
+      });
+      setRequests(sorted);
     } catch (error) {
       toast.error('Failed to load leave requests');
     } finally {
@@ -32,24 +42,51 @@ export default function LeaveRequestList({ isAdmin = false, refreshTrigger = 0 }
 
   const handleApprove = async (id, status) => {
     try {
+      setActionId(id);
       await api.patch(`/leave-requests/${id}/approve`, { status });
-      toast.success(`Request ${status}`);
+      toast.success(`Leave request ${status}`);
       fetchRequests();
+      if (onStatusUpdated) onStatusUpdated();
     } catch (error) {
-      toast.error('Failed to update request');
+      toast.error(error.response?.data?.error?.message || 'Failed to update request');
+    } finally {
+      setActionId(null);
     }
   };
 
-  if (loading) {
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const getStatusBadge = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'approved':
+        return <Badge variant="success" className="text-[11px]"><CheckCircle2 className="w-3 h-3 mr-1" /> Approved</Badge>;
+      case 'rejected':
+        return <Badge variant="destructive" className="text-[11px]"><XCircle className="w-3 h-3 mr-1" /> Rejected</Badge>;
+      case 'pending':
+      default:
+        return <Badge variant="warning" className="text-[11px]"><Clock className="w-3 h-3 mr-1" /> Pending</Badge>;
+    }
+  };
+
+  const pendingCount = requests.filter(r => r.status === 'pending').length;
+
+  if (loading && requests.length === 0) {
     return (
-      <Card className="p-6 border-border/50 shadow-sm">
-        <div className="flex items-center gap-2 mb-6 text-foreground">
-          <FileText className="w-5 h-5 text-muted-foreground" />
-          <h2 className="text-xl font-bold">{isAdmin ? 'Leave Requests' : 'My Leave Requests'}</h2>
+      <Card className="p-6 border-border/70 shadow-sm">
+        <div className="flex items-center justify-between mb-6">
+          <Skeleton className="h-6 w-36" />
+          <Skeleton className="h-5 w-16" />
         </div>
-        <div className="space-y-4">
+        <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-xl" />
+            <Skeleton key={i} className="h-20 w-full rounded-xl" />
           ))}
         </div>
       </Card>
@@ -58,107 +95,134 @@ export default function LeaveRequestList({ isAdmin = false, refreshTrigger = 0 }
 
   if (requests.length === 0) {
     return (
-      <Card className="p-6 border-border/50 shadow-sm">
-        <div className="flex items-center gap-2 mb-4 text-foreground">
-          <FileText className="w-5 h-5 text-muted-foreground" />
-          <h2 className="text-xl font-bold">{isAdmin ? 'Leave Requests' : 'My Leave Requests'}</h2>
+      <Card className="p-6 border-border/70 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+            <FileText className="w-4 h-4 text-primary" />
+            <span>{isAdmin ? 'Team Leave Requests' : 'My Leave Requests'}</span>
+          </h3>
         </div>
         <EmptyState
           icon={CalendarOff}
           title="No Leave Requests"
-          description={isAdmin ? "No pending leave requests from workers." : "You don't have any leave requests at the moment."}
+          description={
+            isAdmin 
+              ? "All technicians are on duty and no time-off requests are awaiting review." 
+              : "You do not have any pending or past leave requests."
+          }
+          className="py-8"
         />
       </Card>
     );
   }
 
   return (
-    <Card className="overflow-hidden border-border/50 shadow-sm">
-      <div className="px-6 py-5 border-b border-border/50 bg-surface-muted/30">
-        <div className="flex items-center gap-2 text-foreground">
-          <FileText className="w-5 h-5 text-primary" />
-          <h3 className="text-lg font-bold">
-            {isAdmin ? 'Leave Requests' : 'My Leave Requests'}
+    <Card className="overflow-hidden border-border/70 shadow-sm">
+      <div className="px-5 py-4 border-b border-border/70 bg-surface flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <FileText className="w-4 h-4 text-primary" />
+          <h3 className="text-base font-bold text-foreground">
+            {isAdmin ? 'Team Leave Requests' : 'My Leave Requests'}
           </h3>
         </div>
+        {isAdmin && (
+          <Badge variant={pendingCount > 0 ? "warning" : "outline"} className="text-xs">
+            {pendingCount} Pending Review
+          </Badge>
+        )}
       </div>
-      <div className="p-4 space-y-4">
-        {requests.map((req, idx) => (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.05 }}
-            key={req._id}
-            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-xl border border-border/50 bg-background hover:border-border hover:shadow-sm transition-all"
-          >
-            <div>
-              {isAdmin && req.workerId && (
-                <p className="text-base font-bold text-foreground mb-1 flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">
-                    {req.workerId.name.charAt(0).toUpperCase()}
-                  </span>
-                  {req.workerId.name}
-                </p>
-              )}
-              <div className="text-sm font-medium text-foreground flex items-center gap-2 flex-wrap">
-                <Badge variant="outline" className="uppercase text-[10px] tracking-wider px-2 py-0.5 bg-surface-muted/30">
-                  {req.type} Leave
-                </Badge>
-                <span className="text-muted-foreground/50">&bull;</span>
-                <span className="text-muted-foreground font-semibold font-mono">
-                  {new Date(req.startDate).toLocaleDateString()}
-                </span>
-                <span className="text-muted-foreground/50 text-xs">to</span>
-                <span className="text-muted-foreground font-semibold font-mono">
-                  {new Date(req.endDate).toLocaleDateString()}
-                </span>
-              </div>
-              {req.reason && (
-                <div className="mt-3 bg-surface-muted/30 px-4 py-2.5 rounded-lg border border-border/50 flex gap-2 items-start">
-                  <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-                  <p className="text-sm text-muted-foreground italic">
-                    "{req.reason}"
-                  </p>
-                </div>
-              )}
-            </div>
-            
-            <div className="flex flex-col sm:items-end gap-3 shrink-0">
-              <Badge
-                variant={
-                  req.status === 'approved' ? 'success' :
-                  req.status === 'rejected' ? 'destructive' :
-                  'warning'
-                }
-                className="uppercase tracking-wider text-[10px] px-3 py-1 font-bold"
-              >
-                {req.status}
-              </Badge>
 
-              {isAdmin && req.status === 'pending' && (
-                <div className="flex space-x-2 w-full sm:w-auto">
-                  <Button
-                    size="sm"
-                    onClick={() => handleApprove(req._id, 'approved')}
-                    className="flex-1 sm:flex-none bg-success hover:bg-success-hover text-success-foreground gap-1.5"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleApprove(req._id, 'rejected')}
-                    className="flex-1 sm:flex-none gap-1.5"
-                  >
-                    <XCircle className="w-3.5 h-3.5" />
-                    Reject
-                  </Button>
+      <div className="p-4">
+        <DataTable 
+          data={requests}
+          loading={loading}
+          searchable={isAdmin}
+          searchPlaceholder="Search by reason..."
+          pagination={true}
+          pageSize={6}
+          emptyIcon={CalendarOff}
+          emptyTitle="No Leave Requests"
+          emptyDescription="No leave requests matched the filter."
+          columns={[
+            ...(isAdmin ? [{
+              key: 'worker',
+              label: 'Technician',
+              render: (req) => (
+                <div className="flex items-center gap-2.5">
+                  <Avatar 
+                    src={req.workerId?.avatarUrl} 
+                    fallback={req.workerId?.name || 'T'} 
+                    size="sm" 
+                  />
+                  <div>
+                    <div className="text-xs font-bold text-foreground">{req.workerId?.name || 'Technician'}</div>
+                    <div className="text-[10px] text-muted-foreground">{req.workerId?.email || ''}</div>
+                  </div>
                 </div>
-              )}
-            </div>
-          </motion.div>
-        ))}
+              )
+            }] : []),
+            {
+              key: 'dates',
+              label: 'Date Range',
+              render: (req) => (
+                <div className="flex flex-col text-xs">
+                  <span className="font-semibold text-foreground">
+                    {formatDate(req.startDate)}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    to {formatDate(req.endDate)}
+                  </span>
+                </div>
+              )
+            },
+            {
+              key: 'reason',
+              label: 'Reason',
+              render: (req) => (
+                <div className="max-w-xs text-xs text-muted-foreground line-clamp-2">
+                  {req.reason || 'No reason provided'}
+                </div>
+              )
+            },
+            {
+              key: 'status',
+              label: 'Status',
+              render: (req) => getStatusBadge(req.status)
+            },
+            ...(isAdmin ? [{
+              key: 'actions',
+              label: 'Actions',
+              render: (req) => (
+                req.status === 'pending' ? (
+                  <div className="flex items-center gap-1.5">
+                    <Button 
+                      size="sm" 
+                      variant="primary"
+                      isLoading={actionId === req._id}
+                      onClick={() => handleApprove(req._id, 'approved')}
+                      className="h-7 px-2 text-xs bg-success hover:bg-success-hover text-white border-transparent"
+                    >
+                      <Check className="w-3.5 h-3.5 mr-1" /> Approve
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      disabled={actionId === req._id}
+                      onClick={() => handleApprove(req._id, 'rejected')}
+                      className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10 border-destructive/30"
+                    >
+                      <X className="w-3.5 h-3.5 mr-1" /> Decline
+                    </Button>
+                  </div>
+                ) : (
+                  <span className="text-[11px] text-muted-foreground capitalize">
+                    {req.status}
+                  </span>
+                )
+              )
+            }] : [])
+          ]}
+        />
       </div>
     </Card>
   );

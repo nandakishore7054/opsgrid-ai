@@ -15,6 +15,11 @@ import { Map, Layers, Building2, Briefcase, Trash2, Search, Filter, X, Info } fr
 const INDIA_CENTER = [22.5937, 78.9629];
 const DEFAULT_ZOOM = 5;
 
+import { PageHeader } from '../../common/components/ui/PageHeader';
+import { AlertDialog } from '../../common/components/ui/AlertDialog';
+import { StatCard } from '../../common/components/ui/StatCard';
+import { Select } from '../../common/components/ui/Select';
+
 export default function GeofenceManager() {
   const [geofences, setGeofences] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +31,8 @@ export default function GeofenceManager() {
 
   // Creation State
   const [pendingGeofence, setPendingGeofence] = useState(null);
+
+  const [alertConfig, setAlertConfig] = useState({ isOpen: false });
 
   const fetchGeofences = async (silent = false) => {
     try {
@@ -79,28 +86,36 @@ export default function GeofenceManager() {
     }
   };
 
-  const handleGeofenceDeleted = async (deletedIds) => {
-    if (!window.confirm(`Are you sure you want to delete ${deletedIds.length} geofence(s)?`)) {
-      fetchGeofences(true); // reload map to restore them
-      return;
-    }
-    
-    let successCount = 0;
-    for (const id of deletedIds) {
-      try {
-        await api.delete(`/geofences/${id}`);
-        successCount++;
-      } catch (err) {
-        toast.error(`Failed to delete geofence ${id}`);
+  const handleGeofenceDeleted = (deletedIds) => {
+    setAlertConfig({
+      isOpen: true,
+      title: 'Delete Geofences',
+      description: `Are you sure you want to delete ${deletedIds.length} geofence(s)?`,
+      intent: 'danger',
+      confirmLabel: 'Delete',
+      onCloseCallback: () => {
+        fetchGeofences(true); // reload map to restore them
+      },
+      onConfirm: async () => {
+        setAlertConfig({ isOpen: false });
+        let successCount = 0;
+        for (const id of deletedIds) {
+          try {
+            await api.delete(`/geofences/${id}`);
+            successCount++;
+          } catch (err) {
+            toast.error(`Failed to delete geofence ${id}`);
+          }
+        }
+        if (successCount > 0) {
+          toast.success(`Deleted ${successCount} geofence(s)`);
+          fetchGeofences(true);
+          if (deletedIds.includes(selectedGeofenceId)) {
+            setSelectedGeofenceId(null);
+          }
+        }
       }
-    }
-    if (successCount > 0) {
-      toast.success(`Deleted ${successCount} geofence(s)`);
-      fetchGeofences(true);
-      if (deletedIds.includes(selectedGeofenceId)) {
-        setSelectedGeofenceId(null);
-      }
-    }
+    });
   };
 
   const handleSavePending = async (e) => {
@@ -159,43 +174,43 @@ export default function GeofenceManager() {
   return (
     <div className="flex flex-col gap-6 min-h-[calc(100vh-80px)] max-w-[1600px] mx-auto pb-10">
       
-      {/* Premium Header */}
-      <Card className="p-6 bg-gradient-to-r from-surface to-surface-muted/30 border-none shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-primary/5 blur-3xl" />
-        
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 relative z-10">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2.5 bg-primary/10 rounded-xl text-primary">
-                <Map className="w-6 h-6" />
-              </div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                Geofence Management
-              </h1>
-            </div>
-            <p className="text-muted-foreground ml-[52px]">Draw and manage operational boundaries, offices, and customer locations.</p>
-          </div>
-          
+      <PageHeader
+        title="Geofence Management"
+        description="Draw and manage operational boundaries, offices, and customer locations."
+        icon={Map}
+        variant="prominent"
+        actions={
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full lg:w-auto">
-            <div className="bg-background rounded-xl p-3 border border-border/50 shadow-sm flex flex-col items-center justify-center">
-              <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">Total</p>
-              <p className="text-xl font-bold text-foreground">{totalGeofences}</p>
-            </div>
-            <div className="bg-background rounded-xl p-3 border border-border/50 shadow-sm flex flex-col items-center justify-center">
-              <p className="text-[10px] uppercase font-bold tracking-wider text-success mb-1">Active</p>
-              <p className="text-xl font-bold text-foreground">{activeGeofences}</p>
-            </div>
-            <div className="bg-background rounded-xl p-3 border border-border/50 shadow-sm flex flex-col items-center justify-center">
-              <p className="text-[10px] uppercase font-bold tracking-wider text-primary mb-1">Customer</p>
-              <p className="text-xl font-bold text-foreground">{customerGeofences}</p>
-            </div>
-            <div className="bg-background rounded-xl p-3 border border-border/50 shadow-sm flex flex-col items-center justify-center">
-              <p className="text-[10px] uppercase font-bold tracking-wider text-indigo-600 dark:text-indigo-400 mb-1">Office</p>
-              <p className="text-xl font-bold text-foreground">{officeGeofences}</p>
-            </div>
+            <StatCard 
+              title="Total" 
+              value={totalGeofences} 
+              variant="default" 
+              className="p-3" 
+            />
+            <StatCard 
+              title="Active" 
+              value={activeGeofences} 
+              variant="default" 
+              colorScheme="success" 
+              className="p-3" 
+            />
+            <StatCard 
+              title="Customer" 
+              value={customerGeofences} 
+              variant="default" 
+              colorScheme="primary" 
+              className="p-3" 
+            />
+            <StatCard 
+              title="Office" 
+              value={officeGeofences} 
+              variant="default" 
+              colorScheme="info" 
+              className="p-3" 
+            />
           </div>
-        </div>
-      </Card>
+        }
+      />
 
       <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-[700px]">
         {/* Sidebar */}
@@ -224,20 +239,15 @@ export default function GeofenceManager() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-semibold text-foreground">Category</label>
-                    <div className="relative">
-                      <select 
+                      <Select 
                         value={pendingGeofence.category || 'general'}
                         onChange={e => setPendingGeofence({...pendingGeofence, category: e.target.value})}
-                        className="w-full h-10 rounded-xl border border-input bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring focus:border-input shadow-sm appearance-none transition-all"
-                      >
-                        <option value="general">General (Boundary)</option>
-                        <option value="office">Office (Auto Check-In)</option>
-                        <option value="customer">Customer (Visit Tracking)</option>
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground">
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                      </div>
-                    </div>
+                        options={[
+                          { value: 'general', label: 'General (Boundary)' },
+                          { value: 'office', label: 'Office (Auto Check-In)' },
+                          { value: 'customer', label: 'Customer (Visit Tracking)' }
+                        ]}
+                      />
                   </div>
                   <div className="flex items-center gap-3 p-3 bg-surface-muted/30 rounded-xl border border-border/50">
                     <input 
@@ -339,21 +349,16 @@ export default function GeofenceManager() {
               </div>
               
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Filter className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <select 
+                <Select 
                   value={statusFilter} 
                   onChange={e => setStatusFilter(e.target.value)}
-                  className="w-full h-10 pl-9 pr-8 rounded-xl border border-input bg-background text-sm text-foreground outline-none focus:ring-2 focus:ring-ring focus:border-input shadow-sm appearance-none transition-all"
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="active">Active Only</option>
-                  <option value="inactive">Inactive Only</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground">
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                </div>
+                  icon={Filter}
+                  options={[
+                    { value: 'all', label: 'All Statuses' },
+                    { value: 'active', label: 'Active Only' },
+                    { value: 'inactive', label: 'Inactive Only' }
+                  ]}
+                />
               </div>
             </div>
             
@@ -368,8 +373,8 @@ export default function GeofenceManager() {
                 <div className="absolute inset-0 flex items-center justify-center p-6">
                   <EmptyState 
                     icon={Map}
-                    title="No Geofences Found"
-                    description="Use the polygon tool on the map to draw a new operational boundary."
+                    title="No locations created"
+                    description="Create locations to track worker arrivals and departures automatically. Use the polygon tool on the map to draw a boundary."
                   />
                 </div>
               ) : (
@@ -429,6 +434,19 @@ export default function GeofenceManager() {
           </div>
         </Card>
       </div>
+
+      <AlertDialog 
+        isOpen={alertConfig.isOpen}
+        onClose={() => {
+          if (alertConfig.onCloseCallback) alertConfig.onCloseCallback();
+          setAlertConfig({ isOpen: false });
+        }}
+        title={alertConfig.title}
+        description={alertConfig.description}
+        intent={alertConfig.intent}
+        confirmLabel={alertConfig.confirmLabel}
+        onConfirm={alertConfig.onConfirm}
+      />
     </div>
   );
 }

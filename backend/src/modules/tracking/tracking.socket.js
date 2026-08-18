@@ -62,6 +62,36 @@ function setupTrackingSockets(io) {
 
         const validation = isValidGPSUpdate(lastValidPoint, newPoint, 'socket');
 
+        const WorkerLocation = require('./location.model');
+        const latestWorkerLocation = await WorkerLocation.findOne({ workerId: workerIdStr }).sort({ timestamp: -1 });
+        let calcTimeDiff = 0;
+        let calcSpeed = 0;
+        if (lastValidPoint && lastValidPoint.timestamp) {
+            calcTimeDiff = (new Date(incomingTimestamp) - new Date(lastValidPoint.timestamp)) / (1000 * 60 * 60);
+            if (calcTimeDiff > 0 && validation.distanceKm) calcSpeed = validation.distanceKm / calcTimeDiff;
+        }
+
+        console.log(`\n--- RUNTIME EVIDENCE [Worker: ${workerIdStr}] ---`);
+        console.log(`Incoming payload:
+  - timestamp: ${incomingTimestamp.toISOString ? incomingTimestamp.toISOString() : incomingTimestamp}
+  - latitude: ${incomingLat}
+  - longitude: ${incomingLng}`);
+        console.log(`Current User:
+  - currentLocation: ${user.currentLocation ? JSON.stringify(user.currentLocation.coordinates) : 'null'}
+  - lastPing: ${user.lastPing ? user.lastPing.toISOString() : 'null'}`);
+        console.log(`Latest WorkerLocation document:
+  - timestamp: ${latestWorkerLocation ? latestWorkerLocation.timestamp.toISOString() : 'null'}
+  - latitude: ${latestWorkerLocation ? latestWorkerLocation.location.coordinates[1] : 'null'}
+  - longitude: ${latestWorkerLocation ? latestWorkerLocation.location.coordinates[0] : 'null'}`);
+        console.log(`Calculated (using user.lastPing):
+  - distance: ${validation.distanceKm || 0} km
+  - timeDiff: ${calcTimeDiff.toFixed(6)} hours
+  - speed: ${calcSpeed.toFixed(2)} km/h`);
+        console.log(`Decision:
+  - ${validation.isValid ? 'SAVED' : 'REJECTED'}`);
+        console.log(`Reason: ${validation.reason}`);
+        console.log(`--------------------------------------\n`);
+
         const updatePayload = {
           lastPing: new Date(),
           batteryLevel: parsed.data.batteryLevel !== undefined ? parsed.data.batteryLevel : user.batteryLevel,

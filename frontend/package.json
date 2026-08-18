@@ -13,6 +13,8 @@
     "browser-image-compression": "^2.0.2",
     "clsx": "^2.1.1",
     "framer-motion": "^12.42.2",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "leaflet": "^1.9.4",
     "leaflet-draw": "^1.0.4",
     "leaflet-polylinedecorator": "^1.6.0",
@@ -26,7 +28,8 @@
     "recharts": "^3.9.2",
     "socket.io-client": "^4.8.3",
     "tailwind-merge": "^3.6.0",
-    "vite-plugin-pwa": "^0.21.1"
+    "vite-plugin-pwa": "^0.21.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",

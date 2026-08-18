@@ -72,9 +72,9 @@ export default function Login() {
       title="Welcome back" 
       subtitle="Sign in to your account to continue."
     >
-      <form className="space-y-5" onSubmit={handleSubmit} noValidate>
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Email</label>
+      <form className="space-y-6" onSubmit={handleSubmit} noValidate>
+        <div className="space-y-2">
+          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Email Address</label>
           <Input
             type="email"
             value={formState.email}
@@ -82,16 +82,11 @@ export default function Login() {
             placeholder="you@example.com"
             leftIcon={<Mail className="w-4 h-4" />}
             error={errors.email}
+            className="h-12 bg-surface-muted/50 border-border/50 focus:bg-background"
           />
         </div>
 
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-foreground">Password</label>
-            <Link to="/forgot-password" className="text-sm font-medium text-primary hover:text-primary-hover transition-colors">
-              Forgot password?
-            </Link>
-          </div>
+        <div className="space-y-2">
           <div className="relative">
             <Input
               type={showPassword ? 'text' : 'password'}
@@ -100,17 +95,29 @@ export default function Login() {
               placeholder="Enter your password"
               leftIcon={<Lock className="w-4 h-4" />}
               error={errors.password}
-              className="pr-10"
+              className="pr-10 h-12 bg-surface-muted/50 border-border/50 focus:bg-background"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-[9px] text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               tabIndex="-1"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
+          </div>
+          <div className="flex items-center justify-between mt-3">
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <div className="w-4 h-4 rounded border border-border/50 bg-surface-muted/50 flex items-center justify-center group-hover:border-primary transition-colors">
+                <input type="checkbox" className="opacity-0 absolute" />
+                <div className="hidden group-has-[:checked]:block w-2 h-2 bg-primary rounded-[2px]" />
+              </div>
+              <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Remember me</span>
+            </label>
+            <Link to="/forgot-password" className="text-sm font-bold text-primary hover:text-primary-hover transition-colors">
+              Forgot password?
+            </Link>
           </div>
         </div>
 
@@ -120,9 +127,9 @@ export default function Login() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="rounded-lg bg-destructive/10 px-4 py-3 border border-destructive/20 text-sm text-destructive"
+              className="rounded-xl bg-destructive/10 px-4 py-3 border border-destructive/20 text-sm text-destructive flex items-start gap-3"
             >
-              {serverMessage}
+              <span>{serverMessage}</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -130,17 +137,17 @@ export default function Login() {
         <Button
           type="submit"
           isLoading={isSubmitting}
-          className="w-full mt-2"
+          className="w-full mt-2 h-12 text-base shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all font-bold"
           size="lg"
         >
-          Sign in
+          Sign In to Dashboard
         </Button>
       </form>
 
-      <div className="mt-8 text-center text-sm text-muted-foreground">
-        <p>
+      <div className="mt-10 text-center">
+        <p className="text-sm font-medium text-muted-foreground">
           Don't have an account?{' '}
-          <Link to="/register" className="font-semibold text-primary hover:text-primary-hover transition-colors">
+          <Link to="/register" className="font-bold text-foreground hover:text-primary transition-colors">
             Create an account
           </Link>
         </p>

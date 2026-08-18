@@ -2,31 +2,31 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import api from '../../app/api';
 import { Card } from '../../common/components/ui/Card';
-import { Input } from '../../common/components/ui/Input';
 import { Button } from '../../common/components/ui/Button';
 import { Skeleton } from '../../common/components/ui/Skeleton';
-import { CalendarDays, Save, CheckCircle2, Clock } from 'lucide-react';
+import { Badge } from '../../common/components/ui/Badge';
+import { CalendarDays, Save, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const DAYS_OF_WEEK = [
-  'Sunday',
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
+  { index: 1, name: 'Monday' },
+  { index: 2, name: 'Tuesday' },
+  { index: 3, name: 'Wednesday' },
+  { index: 4, name: 'Thursday' },
+  { index: 5, name: 'Friday' },
+  { index: 6, name: 'Saturday' },
+  { index: 0, name: 'Sunday' },
 ];
 
-export default function AvailabilityGrid({ workerId = 'me', readOnly = false }) {
+export default function AvailabilityGrid({ workerId = 'me', readOnly = false, onSaveSuccess }) {
   const [availabilities, setAvailabilities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // default grid state
+  // default grid state for all 7 days (0 to 6)
   const [grid, setGrid] = useState(
-    DAYS_OF_WEEK.map((_, index) => ({
-      dayOfWeek: index,
+    [0, 1, 2, 3, 4, 5, 6].map((dayIndex) => ({
+      dayOfWeek: dayIndex,
       isAvailable: false,
       startTime: '09:00',
       endTime: '17:00',
@@ -42,21 +42,21 @@ export default function AvailabilityGrid({ workerId = 'me', readOnly = false }) 
       setLoading(true);
       const endpoint = workerId === 'me' ? '/availability/me' : `/availability/${workerId}`;
       const res = await api.get(endpoint);
-      const data = res.data.data || [];
+      const data = res.data?.data || [];
       setAvailabilities(data);
 
-      const newGrid = DAYS_OF_WEEK.map((_, index) => {
-        const existing = data.find((a) => a.dayOfWeek === index);
+      const newGrid = [0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
+        const existing = data.find((a) => a.dayOfWeek === dayIndex);
         if (existing) {
           return {
-            dayOfWeek: index,
+            dayOfWeek: dayIndex,
             isAvailable: true,
-            startTime: existing.startTime,
-            endTime: existing.endTime,
+            startTime: existing.startTime || '09:00',
+            endTime: existing.endTime || '17:00',
           };
         }
         return {
-          dayOfWeek: index,
+          dayOfWeek: dayIndex,
           isAvailable: false,
           startTime: '09:00',
           endTime: '17:00',
@@ -64,7 +64,7 @@ export default function AvailabilityGrid({ workerId = 'me', readOnly = false }) 
       });
       setGrid(newGrid);
     } catch (error) {
-      toast.error('Failed to load availability');
+      toast.error('Failed to load availability schedule');
     } finally {
       setLoading(false);
     }
@@ -98,72 +98,96 @@ export default function AvailabilityGrid({ workerId = 'me', readOnly = false }) 
       setSaving(true);
       const endpoint = workerId === 'me' ? '/availability/me' : `/availability/${workerId}`;
       await api.put(endpoint, { availabilities: payload });
-      toast.success('Availability saved successfully');
+      toast.success('Weekly availability schedule saved');
       fetchAvailability();
+      if (onSaveSuccess) onSaveSuccess();
     } catch (error) {
-      toast.error(error.response?.data?.error?.details?.time?.[0] || 'Failed to save availability');
+      const errorMsg = error.response?.data?.error?.message || 
+                       error.response?.data?.error?.details?.time?.[0] || 
+                       'Failed to save availability';
+      toast.error(errorMsg);
     } finally {
       setSaving(false);
     }
   };
 
+  const activeDaysCount = grid.filter(d => d.isAvailable).length;
+
   if (loading) {
     return (
-      <Card className="p-6 border-border/50 shadow-sm">
-        <div className="flex items-center gap-2 mb-6">
-          <CalendarDays className="w-5 h-5 text-muted-foreground" />
-          <h2 className="text-xl font-bold text-foreground">Weekly Schedule</h2>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between mb-4">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-5 w-20" />
         </div>
-        <div className="space-y-4">
-          {[...Array(7)].map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-xl" />
-          ))}
-        </div>
-      </Card>
+        {[...Array(7)].map((_, i) => (
+          <Skeleton key={i} className="h-16 w-full rounded-xl" />
+        ))}
+      </div>
     );
   }
 
   return (
-    <Card className="p-6 border-border/50 shadow-sm relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl" />
-      <div className="relative z-10">
-        <div className="flex items-center gap-2 mb-6">
-          <CalendarDays className="w-5 h-5 text-primary" />
-          <h2 className="text-xl font-bold text-foreground">Weekly Schedule</h2>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between pb-2 border-b border-border/70">
+        <div className="flex items-center gap-2">
+          <CalendarDays className="w-4 h-4 text-primary" />
+          <span className="text-sm font-bold text-foreground">Weekly Shift Schedule</span>
         </div>
-        <div className="space-y-3">
-          {grid.map((day, idx) => (
+        <Badge variant={activeDaysCount > 0 ? "primary" : "outline"} className="text-xs">
+          {activeDaysCount} {activeDaysCount === 1 ? 'day' : 'days'} scheduled
+        </Badge>
+      </div>
+
+      <div className="space-y-2.5">
+        {DAYS_OF_WEEK.map((dayObj, idx) => {
+          const day = grid.find((d) => d.dayOfWeek === dayObj.index) || {
+            dayOfWeek: dayObj.index,
+            isAvailable: false,
+            startTime: '09:00',
+            endTime: '17:00'
+          };
+
+          return (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              key={day.dayOfWeek}
-              className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border transition-all duration-200 ${
+              transition={{ delay: idx * 0.03 }}
+              key={dayObj.index}
+              className={`flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl border transition-all duration-200 ${
                 day.isAvailable
-                  ? 'border-primary shadow-[0_4px_12px_rgba(var(--primary-rgb),0.05)] bg-primary/5'
-                  : 'border-border/50 bg-background hover:border-border hover:bg-surface-muted/30'
+                  ? 'border-primary/40 bg-primary/5 shadow-sm'
+                  : 'border-border/60 bg-background hover:bg-surface-muted/30'
               }`}
             >
-              <div className="flex items-center gap-3 mb-3 sm:mb-0">
+              {/* Day Name and Toggle Switch */}
+              <div className="flex items-center gap-3 mb-2.5 sm:mb-0">
                 <button
                   type="button"
                   onClick={() => handleToggleDay(day.dayOfWeek)}
                   disabled={readOnly}
-                  className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors border ${
+                  aria-label={`Toggle availability for ${dayObj.name}`}
+                  className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all border ${
                     day.isAvailable 
-                      ? 'bg-primary border-primary text-primary-foreground shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]' 
-                      : 'bg-background border-border text-transparent hover:border-primary/50'
+                      ? 'bg-primary border-primary text-primary-foreground shadow-sm' 
+                      : 'bg-surface border-border text-transparent hover:border-primary/50'
                   } ${readOnly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                 >
                   <CheckCircle2 className="w-4 h-4" />
                 </button>
-                <span className={`font-bold text-sm tracking-wide uppercase ${day.isAvailable ? 'text-primary' : 'text-muted-foreground'}`}>
-                  {DAYS_OF_WEEK[day.dayOfWeek]}
-                </span>
+                <div>
+                  <span className={`font-bold text-sm ${day.isAvailable ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    {dayObj.name}
+                  </span>
+                  <div className="text-[11px] text-muted-foreground">
+                    {day.isAvailable ? 'Available for dispatch' : 'Off duty'}
+                  </div>
+                </div>
               </div>
 
+              {/* Time Configuration Inputs */}
               {day.isAvailable ? (
-                <div className="flex items-center gap-2 bg-background p-1.5 rounded-lg border border-border/50 shadow-sm">
+                <div className="flex items-center gap-2 bg-surface p-1.5 rounded-lg border border-border/70 shadow-sm">
                   <div className="relative flex items-center">
                     <Clock className="absolute left-2.5 w-3.5 h-3.5 text-muted-foreground" />
                     <input
@@ -171,10 +195,11 @@ export default function AvailabilityGrid({ workerId = 'me', readOnly = false }) 
                       value={day.startTime}
                       onChange={(e) => handleTimeChange(day.dayOfWeek, 'startTime', e.target.value)}
                       disabled={readOnly}
-                      className="h-8 w-28 pl-8 pr-2 rounded-md bg-transparent text-sm font-medium outline-none focus:ring-1 focus:ring-primary focus:bg-surface-muted/30 disabled:opacity-50"
+                      aria-label={`${dayObj.name} start time`}
+                      className="h-8 w-28 pl-8 pr-2 rounded-md bg-transparent text-xs font-semibold text-foreground outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
                     />
                   </div>
-                  <span className="text-muted-foreground text-xs font-bold uppercase">to</span>
+                  <span className="text-muted-foreground text-[10px] font-bold uppercase">to</span>
                   <div className="relative flex items-center">
                     <Clock className="absolute left-2.5 w-3.5 h-3.5 text-muted-foreground" />
                     <input
@@ -182,30 +207,35 @@ export default function AvailabilityGrid({ workerId = 'me', readOnly = false }) 
                       value={day.endTime}
                       onChange={(e) => handleTimeChange(day.dayOfWeek, 'endTime', e.target.value)}
                       disabled={readOnly}
-                      className="h-8 w-28 pl-8 pr-2 rounded-md bg-transparent text-sm font-medium outline-none focus:ring-1 focus:ring-primary focus:bg-surface-muted/30 disabled:opacity-50"
+                      aria-label={`${dayObj.name} end time`}
+                      className="h-8 w-28 pl-8 pr-2 rounded-md bg-transparent text-xs font-semibold text-foreground outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
                     />
                   </div>
                 </div>
               ) : (
-                <span className="text-muted-foreground/60 italic text-sm font-semibold px-4">Unavailable</span>
+                <div className="flex items-center gap-1.5 text-muted-foreground/70 text-xs font-medium px-2 py-1">
+                  <XCircle className="w-3.5 h-3.5" />
+                  <span>Not Scheduled</span>
+                </div>
               )}
             </motion.div>
-          ))}
-        </div>
-
-        {!readOnly && (
-          <div className="mt-8 flex justify-end">
-            <Button
-              onClick={handleSave}
-              isLoading={saving}
-              className="gap-2"
-            >
-              <Save className="w-4 h-4" />
-              Save Availability
-            </Button>
-          </div>
-        )}
+          );
+        })}
       </div>
-    </Card>
+
+      {!readOnly && (
+        <div className="pt-3 border-t border-border/60 flex justify-end">
+          <Button
+            onClick={handleSave}
+            isLoading={saving}
+            className="gap-2 shadow-sm"
+            size="sm"
+          >
+            <Save className="w-4 h-4" />
+            <span>Save Schedule</span>
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

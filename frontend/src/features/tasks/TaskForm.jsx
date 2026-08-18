@@ -7,6 +7,7 @@ import api from '../../app/api';
 import { Card } from '../../common/components/ui/Card';
 import { Input } from '../../common/components/ui/Input';
 import { Button } from '../../common/components/ui/Button';
+import { Select } from '../../common/components/ui/Select';
 
 const initialFormState = {
   title: '',
@@ -214,20 +215,12 @@ export default function TaskForm({ editingTask, onSaved, onCancel }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">Priority</label>
-              <div className="relative">
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <Flag className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <select
-                  value={formState.priority}
-                  onChange={(e) => setFormState({ ...formState, priority: e.target.value })}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-input bg-surface text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-shadow appearance-none"
-                >
-                  {priorityOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                value={formState.priority}
+                onChange={(e) => setFormState({ ...formState, priority: e.target.value })}
+                icon={Flag}
+                options={priorityOptions}
+              />
             </div>
 
             <Input
@@ -251,19 +244,13 @@ export default function TaskForm({ editingTask, onSaved, onCancel }) {
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Assignee</label>
             <div className="relative">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                <User className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <select
+              <Select
                 value={formState.assignedTo}
                 onChange={(e) => setFormState({ ...formState, assignedTo: e.target.value })}
                 disabled={loadingWorkers}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-input bg-surface text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-shadow appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {workerOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
+                icon={User}
+                options={workerOptions}
+              />
             </div>
             
             <AnimatePresence>

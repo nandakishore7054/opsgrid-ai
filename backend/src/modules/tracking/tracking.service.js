@@ -26,8 +26,9 @@ async function getActiveWorkers() {
   const now = new Date();
   const date = getStartOfDay(now);
 
-  // 1. Get all workers who are checked in and haven't checked out (regardless of whether they checked in before midnight)
+  // 1. Get all workers who are checked in and haven't checked out today
   const allActiveAttendances = await AttendanceRecord.find({
+    date: date,
     checkOut: { $exists: false },
   })
     .sort({ createdAt: -1 })
@@ -91,6 +92,15 @@ async function getActiveWorkers() {
       if (activeVisit && activeVisit.geofenceId) {
         currentGeofence = activeVisit.geofenceId.name;
         geofenceArrivalTime = activeVisit.arrivalTime;
+      }
+
+      // If no CustomerVisit is found, resolve geofence based on current coordinates
+      if (!currentGeofence && longitude !== null && latitude !== null) {
+        const geofenceService = require('./geofence.service');
+        const resolvedGeofence = await geofenceService.getActiveGeofenceForLocation(longitude, latitude);
+        if (resolvedGeofence) {
+          currentGeofence = resolvedGeofence;
+        }
       }
 
       return {

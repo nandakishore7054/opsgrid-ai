@@ -1,105 +1,102 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Eye, ShieldCheck, Zap, BrainCircuit, Lightbulb } from 'lucide-react';
+import { 
+  XCircle, 
+  CheckCircle2, 
+  Layers, 
+  Radio, 
+  ShieldAlert, 
+  Clock, 
+  BrainCircuit,
+  Workflow
+} from 'lucide-react';
+import { Badge } from '../../common/components/ui/Badge';
 
-const reasons = [
+const comparisonPoints = [
   {
-    icon: Eye,
-    title: 'Real-Time Visibility',
-    description: 'Eliminate blind spots. See exactly where your team is located globally without waiting for manual check-ins.'
+    category: 'Workforce Tracking',
+    legacy: 'Periodic phone calls, text messages, and unverified self-reporting.',
+    opsgrid: 'Continuous sub-second GPS streaming with automatic jitter and drift suppression.'
   },
   {
-    icon: ShieldCheck,
-    title: 'Workforce Accountability',
-    description: 'Cryptographically verify attendance with geofences and timestamped coordinate logs. Trust, but verify.'
+    category: 'Site Attendance',
+    legacy: 'Paper sign-in sheets and easily manipulated manual check-ins.',
+    opsgrid: 'Mathematically validated polygon geofences with automated shift grace periods.'
   },
   {
-    icon: Zap,
-    title: 'Operational Efficiency',
-    description: 'Dispatch the closest worker instantly using Haversine distance calculations to reduce travel time and fuel costs.'
+    category: 'Task Dispatch',
+    legacy: 'Manual calling to ask who is available and nearest to a job site.',
+    opsgrid: 'Automated Haversine proximity calculations pair tasks with the nearest active technician.'
   },
   {
-    icon: BrainCircuit,
-    title: 'AI-Powered Insights',
-    description: 'Let Generative AI do the heavy lifting at the end of the shift by summarizing raw telemetry into executive reports.'
+    category: 'Visit Logging',
+    legacy: 'Untracked arrival and departure times leading to customer disputes.',
+    opsgrid: 'Automated CustomerVisit lifecycle with self-healing recovery and exact timestamps.'
   },
   {
-    icon: Lightbulb,
-    title: 'Intelligent Decision Making',
-    description: 'Stop guessing. Use hard distance metrics and completion times to optimize your daily operational strategy.'
+    category: 'Shift Summaries',
+    legacy: 'Manual daily log reconciliation taking hours at the end of each shift.',
+    opsgrid: 'Automated AI operational synthesis aggregates thousands of events in seconds.'
   }
 ];
 
 export default function WhyFieldIntelSection() {
   return (
-    <section className="py-24 bg-surface relative border-y border-border">
+    <section className="py-24 bg-background relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          {/* Left: Text Content */}
-          <div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
-            >
-              <h2 className="text-sm font-bold tracking-widest text-primary uppercase mb-3">Why OpsGrid</h2>
-              <h3 className="text-4xl font-extrabold tracking-tight mb-6 leading-tight">
-                Move from reactive management to proactive intelligence.
-              </h3>
-              <p className="text-lg text-muted-foreground mb-10 leading-relaxed">
-                Traditional workforce management relies on trust and paper trails. OpsGrid replaces guesswork with deterministic geographic data and AI analysis.
-              </p>
-            </motion.div>
+        {/* Header */}
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <Badge variant="primary" className="mb-3 uppercase tracking-wider text-xs">
+            The OpsGrid Advantage
+          </Badge>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-foreground mb-4">
+            Why Modern Teams Migrate to OpsGrid.
+          </h2>
+          <p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
+            Replace fragmented tools and manual coordination with a unified, deterministic operations platform.
+          </p>
+        </div>
 
-            <div className="space-y-8">
-              {reasons.slice(0, 3).map((reason, idx) => (
-                <motion.div 
-                  key={idx}
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: idx * 0.1 }}
-                  className="flex gap-4"
-                >
-                  <div className="flex-shrink-0 mt-1 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <reason.icon className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-bold mb-1">{reason.title}</h4>
-                    <p className="text-muted-foreground">{reason.description}</p>
-                  </div>
-                </motion.div>
-              ))}
+        {/* Side-by-Side Comparison Matrix */}
+        <div className="max-w-5xl mx-auto rounded-2xl border border-border bg-surface shadow-md overflow-hidden">
+          {/* Header Row */}
+          <div className="grid grid-cols-1 md:grid-cols-12 border-b border-border bg-surface-muted/60 p-4 text-xs font-bold uppercase tracking-wider">
+            <div className="md:col-span-3 text-muted-foreground hidden md:block">Operational Domain</div>
+            <div className="md:col-span-4 text-destructive/90 flex items-center gap-1.5">
+              <XCircle className="w-4 h-4 text-destructive" />
+              <span>Legacy / Fragmented Process</span>
+            </div>
+            <div className="md:col-span-5 text-primary flex items-center gap-1.5 mt-2 md:mt-0">
+              <CheckCircle2 className="w-4 h-4 text-primary" />
+              <span>OpsGrid Unified Platform</span>
             </div>
           </div>
 
-          {/* Right: Visual / Remaining Reasons */}
-          <div className="relative">
-             <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 to-info/5 rounded-3xl transform rotate-3" />
-             <div className="relative bg-background border border-border shadow-xl rounded-3xl p-8 lg:p-12">
-               <div className="space-y-10">
-                  {reasons.slice(3).map((reason, idx) => (
-                    <motion.div 
-                      key={idx}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.5, delay: idx * 0.2 }}
-                      className="flex flex-col gap-4"
-                    >
-                      <div className="w-12 h-12 rounded-xl bg-surface border border-border flex items-center justify-center shadow-sm">
-                        <reason.icon className="w-6 h-6 text-foreground" />
-                      </div>
-                      <div>
-                        <h4 className="text-xl font-bold mb-2">{reason.title}</h4>
-                        <p className="text-muted-foreground leading-relaxed">{reason.description}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-               </div>
-             </div>
+          {/* Rows */}
+          <div className="divide-y divide-border">
+            {comparisonPoints.map((item, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.3, delay: idx * 0.05 }}
+                className="grid grid-cols-1 md:grid-cols-12 p-5 gap-3 md:gap-4 items-center hover:bg-surface-muted/30 transition-colors"
+              >
+                <div className="md:col-span-3 text-xs font-bold text-foreground">
+                  {item.category}
+                </div>
+                <div className="md:col-span-4 text-xs text-muted-foreground leading-relaxed flex items-start gap-2">
+                  <span className="text-destructive font-bold md:hidden">•</span>
+                  <span>{item.legacy}</span>
+                </div>
+                <div className="md:col-span-5 text-xs text-foreground font-medium leading-relaxed flex items-start gap-2 bg-primary/5 p-3 rounded-lg md:bg-transparent md:p-0">
+                  <CheckCircle2 className="w-4 h-4 text-success shrink-0 mt-0.5" />
+                  <span>{item.opsgrid}</span>
+                </div>
+              </motion.div>
+            ))}
           </div>
         </div>
 

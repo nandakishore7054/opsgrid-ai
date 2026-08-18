@@ -11,11 +11,11 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['pwa-icon.svg'],
+        includeAssets: ['favicon.ico', 'favicon.png', 'apple-touch-icon.png', 'logo-dark.png', 'logo-light.png'],
         manifest: {
-          name: 'Smart Field Ops',
-          short_name: 'FieldOps',
-          description: 'Smart Field Operations workforce management app',
+          name: 'OpsGrid - Field Operations Platform',
+          short_name: 'OpsGrid',
+          description: 'OpsGrid AI-Powered Field Operations Intelligence Platform',
           theme_color: '#020617',
           background_color: '#020617',
           display: 'standalone',
@@ -23,19 +23,20 @@ export default defineConfig(({ mode }) => {
           start_url: '/',
           icons: [
             {
-              src: '/pwa-icon.svg',
+              src: '/pwa-192x192.png',
               sizes: '192x192',
-              type: 'image/svg+xml',
+              type: 'image/png',
             },
             {
-              src: '/pwa-icon.svg',
+              src: '/pwa-512x512.png',
               sizes: '512x512',
-              type: 'image/svg+xml',
+              type: 'image/png',
             },
           ],
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         },
       }),
     ],

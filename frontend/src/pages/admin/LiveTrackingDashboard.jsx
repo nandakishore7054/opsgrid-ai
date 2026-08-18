@@ -18,9 +18,10 @@ import { EmptyState } from '../../common/components/ui/EmptyState';
 import { Skeleton } from '../../common/components/ui/Skeleton';
 import { motion } from 'framer-motion';
 import { 
-  Users, Wifi, WifiOff, Activity, Navigation, LocateFixed, Globe, Target, MapPin, 
+  Users, Wifi, WifiOff, Activity, Navigation, LocateFixed, Globe, Target, MapPin, MapPinOff,
   Map, Battery, ShieldAlert, Gauge, XCircle, Filter, Search, RotateCcw
 } from 'lucide-react';
+import { Select } from '../../common/components/ui/Select';
 
 const INDIA_CENTER = [22.5937, 78.9629];
 const DEFAULT_ZOOM = 5;
@@ -116,6 +117,13 @@ function MapController({ workers, selectedWorkerId, onResetCenter, isNearestMode
     </div>
   );
 }
+
+import { PageHeader } from '../../common/components/ui/PageHeader';
+import { BatteryIndicator } from '../../common/components/ui/BatteryIndicator';
+import { Avatar } from '../../common/components/ui/Avatar';
+import { TimeAgo } from '../../common/components/ui/TimeAgo';
+import { GpsSignalBadge } from '../../common/components/ui/GpsSignalBadge';
+import { StatCard } from '../../common/components/ui/StatCard';
 
 export default function LiveTrackingDashboard() {
   const navigate = useNavigate();
@@ -235,6 +243,16 @@ export default function LiveTrackingDashboard() {
 
   useEffect(() => {
     function handleLocationUpdate(data) {
+      console.log('--- SOCKET EVENT ---');
+      console.log('Event name: location:updated');
+      console.log('Worker ID:', data.workerId);
+      console.log('Latitude:', data.latitude);
+      console.log('Longitude:', data.longitude);
+      console.log('currentGeofence:', data.currentGeofence);
+      console.log('locationName:', data.locationName);
+      console.log('category:', data.category);
+      console.log('--------------------');
+      
       setWorkers(prev => {
         const existing = prev[data.workerId];
         
@@ -315,7 +333,16 @@ export default function LiveTrackingDashboard() {
     }
 
     function handleGeofenceEntered(data) {
-      if (data.category !== 'customer') return;
+      console.log('--- SOCKET EVENT ---');
+      console.log('Event name: geofence:entered');
+      console.log('Worker ID:', data.workerId);
+      console.log('Latitude:', data.latitude);
+      console.log('Longitude:', data.longitude);
+      console.log('currentGeofence:', data.geofenceName);
+      console.log('locationName:', data.locationName);
+      console.log('category:', data.category);
+      console.log('--------------------');
+      
       setWorkers(prev => {
         const existing = prev[data.workerId];
         if (!existing) return prev;
@@ -328,13 +355,24 @@ export default function LiveTrackingDashboard() {
           }
         };
       });
+      console.log('Worker State Check:', workers[data.workerId]);
     }
 
     function handleGeofenceExited(data) {
-      if (data.category !== 'customer') return;
       setWorkers(prev => {
         const existing = prev[data.workerId];
         if (!existing) return prev;
+
+        console.log('--- SOCKET EVENT ---');
+        console.log('Event name: geofence:exited');
+        console.log('Exited:\n' + data.geofenceName);
+        console.log('Current:\n' + existing.currentGeofence);
+        console.log('Equal?\n' + (existing.currentGeofence === data.geofenceName));
+
+        if (existing.currentGeofence !== data.geofenceName) {
+          return prev;
+        }
+
         return {
           ...prev,
           [data.workerId]: {
@@ -422,24 +460,12 @@ export default function LiveTrackingDashboard() {
 
   return (
     <div className="flex flex-col gap-6 min-h-[calc(100vh-80px)] max-w-[1600px] mx-auto">
-      {/* Premium Header */}
-      <Card className="p-6 bg-gradient-to-r from-surface to-surface-muted/30 border-none shadow-sm relative overflow-hidden">
-        {/* Decorative background elements */}
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-primary/5 blur-3xl" />
-        
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 relative z-10">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2.5 bg-primary/10 rounded-xl text-primary">
-                <Navigation className="w-6 h-6" />
-              </div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                Live Tracking Dashboard
-              </h1>
-            </div>
-            <p className="text-muted-foreground ml-[52px]">Monitor fleet and field workers in real-time across the region</p>
-          </div>
-          
+      <PageHeader
+        title="Live Tracking Dashboard"
+        description="Monitor fleet and field workers in real-time across the region"
+        icon={Navigation}
+        variant="prominent"
+        actions={
           <div className="flex flex-col items-end gap-3">
             <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-surface border border-border/50 shadow-sm">
               <div className="relative flex h-3.5 w-3.5">
@@ -452,12 +478,12 @@ export default function LiveTrackingDashboard() {
             </div>
             {lastUpdate && (
               <p className="text-xs text-muted-foreground font-medium">
-                Last signal: {lastUpdate.toLocaleTimeString()}
+                Last signal: <TimeAgo timestamp={lastUpdate} />
               </p>
             )}
           </div>
-        </div>
-      </Card>
+        }
+      />
 
       {/* KPI Cards (Framer Motion Staggered) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -496,9 +522,9 @@ export default function LiveTrackingDashboard() {
         ))}
       </div>
 
-      <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-[600px]">
+      <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-[500px] lg:min-h-[650px] w-full">
         {/* Sidebar */}
-        <Card className="w-full lg:w-96 flex flex-col shrink-0 overflow-hidden border-border/50">
+        <Card className="w-full lg:w-96 flex flex-col shrink-0 border-border/50 bg-surface shadow-xs min-h-[380px] lg:min-h-[650px]">
           <div className="p-5 border-b border-border/50 space-y-4 bg-surface-muted/30">
             <div className="flex justify-between items-center">
               <h2 className="font-bold text-lg text-foreground flex items-center gap-2">
@@ -520,7 +546,7 @@ export default function LiveTrackingDashboard() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input 
                 type="text" 
-                placeholder="Search by name or ID..." 
+                placeholder="Search workers..." 
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -529,28 +555,28 @@ export default function LiveTrackingDashboard() {
             
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                <select 
+                <Select 
                   value={filterOnline} 
                   onChange={e => setFilterOnline(e.target.value)}
-                  className="w-full flex h-10 rounded-md border border-input bg-background pl-8 pr-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
-                >
-                  <option value="all">All Status</option>
-                  <option value="online">Online</option>
-                  <option value="offline">Offline</option>
-                </select>
+                  icon={Filter}
+                  options={[
+                    { value: 'all', label: 'Status' },
+                    { value: 'online', label: 'Online' },
+                    { value: 'offline', label: 'Offline' }
+                  ]}
+                />
               </div>
               <div className="relative flex-1">
-                <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                <select 
+                <Select 
                   value={filterAttendance} 
                   onChange={e => setFilterAttendance(e.target.value)}
-                  className="w-full flex h-10 rounded-md border border-input bg-background pl-8 pr-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
-                >
-                  <option value="all">All Attendance</option>
-                  <option value="present">Present</option>
-                  <option value="late">Late</option>
-                </select>
+                  icon={Filter}
+                  options={[
+                    { value: 'all', label: 'Attendance' },
+                    { value: 'present', label: 'Present' },
+                    { value: 'late', label: 'Late' }
+                  ]}
+                />
               </div>
             </div>
           </div>
@@ -615,23 +641,28 @@ export default function LiveTrackingDashboard() {
                         }`}
                       >
                         <div className="flex items-start gap-3">
-                          <div className="mt-0.5">
-                            <div className={`${badgeClass} font-black text-xs px-2 py-1 rounded shadow-sm`}>#{idx + 1}</div>
+                          <div className="relative">
+                            <Avatar 
+                              fallback={worker.workerName || 'U'} 
+                              size="md" 
+                              status={worker.timestamp && (new Date() - new Date(worker.timestamp) < 5 * 60 * 1000) ? 'online' : 'busy'} 
+                            />
+                            <div className={`absolute -bottom-1 -right-1 ${badgeClass} font-black text-[10px] w-5 h-5 flex items-center justify-center rounded-full border-2 border-background shadow-sm`}>{idx + 1}</div>
                           </div>
-                          <div>
-                            <div className="font-bold text-foreground text-sm flex items-center gap-1.5">
+                          <div className="min-w-0">
+                            <div className="font-bold text-foreground text-sm flex items-center gap-1.5 truncate">
                               {worker.workerName}
                             </div>
                             <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5">
                               {worker.currentGeofence ? (
                                 <div className="text-primary font-medium truncate w-32 flex items-center gap-1">
-                                  <MapPin className="w-3 h-3" />
-                                  {worker.currentGeofence}
+                                  <MapPin className="w-3 h-3 shrink-0" />
+                                  <span className="truncate">{worker.currentGeofence}</span>
                                 </div>
                               ) : (
                                 <div>No active assignment</div>
                               )}
-                              <div className="text-muted-foreground/70">Last seen: {new Date(worker.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                              <div className="text-muted-foreground/70 flex items-center gap-1">Last seen: <TimeAgo timestamp={worker.timestamp} /></div>
                             </div>
                           </div>
                         </div>
@@ -653,7 +684,7 @@ export default function LiveTrackingDashboard() {
             </motion.div>
           )}
           
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 relative">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 relative min-h-[280px]">
             {loading ? (
               <div className="space-y-3">
                 {[1,2,3,4,5].map(i => (
@@ -667,20 +698,14 @@ export default function LiveTrackingDashboard() {
                 ))}
               </div>
             ) : filteredWorkers.length === 0 ? (
-              <div className="absolute inset-0 flex flex-col justify-center p-6 text-center h-full">
+              <div className="py-8 px-4 flex flex-col justify-center items-center text-center w-full my-auto">
                 <EmptyState
-                  icon={Map}
-                  title="No Active Workers"
-                  description="No workers are currently checked in or matching your filters."
+                  icon={MapPinOff}
+                  title="No active workers"
+                  description="There are currently no workers online or broadcasting location data."
+                  action={<Button onClick={() => fetchWorkers()} className="w-full">Refresh Directory</Button>}
+                  secondaryAction={<Button variant="outline" onClick={() => navigate('/admin/attendance')} className="w-full">Go to Attendance</Button>}
                 />
-                <div className="flex flex-col w-full gap-3 mt-4">
-                  <Button onClick={() => fetchWorkers()} className="w-full">
-                    Refresh Directory
-                  </Button>
-                  <Button variant="outline" onClick={() => navigate('/admin/attendance')} className="w-full">
-                    Go to Attendance
-                  </Button>
-                </div>
               </div>
             ) : (
               <div className="space-y-2">
@@ -702,15 +727,14 @@ export default function LiveTrackingDashboard() {
                       }`}
                     >
                       {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />}
-                      <div className="flex gap-4 items-center">
-                        <div className="relative shrink-0">
-                          <div className="w-12 h-12 bg-surface-muted rounded-full flex items-center justify-center font-bold text-lg text-foreground border border-border shadow-sm">
-                            {(worker.workerName || 'U').charAt(0).toUpperCase()}
-                          </div>
-                          <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-background ${isOnline ? 'bg-success' : 'bg-destructive'}`} />
-                        </div>
+                      <div className="flex gap-4 items-start">
+                        <Avatar 
+                          fallback={worker.workerName || 'U'}
+                          size="lg" 
+                          status={isOnline ? 'online' : 'busy'}
+                        />
                         <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start mb-1">
+                          <div className="flex justify-between items-start mb-1.5">
                             <h4 className="font-bold text-foreground truncate pr-2">{worker.workerName || 'Unknown Worker'}</h4>
                             {worker.attendanceStatus && (
                               <Badge 
@@ -719,32 +743,41 @@ export default function LiveTrackingDashboard() {
                                   worker.attendanceStatus === 'manual_override' ? 'secondary' :
                                   'warning'
                                 }
-                                className="text-[10px] px-2 py-0.5"
+                                className="text-[10px] px-2 py-0.5 shrink-0"
                               >
                                 {worker.attendanceStatus === 'manual_override' ? 'Override' : worker.attendanceStatus}
                               </Badge>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground font-mono mb-1.5">ID: {worker.workerId.slice(-6)}</p>
                           
-                          {worker.currentGeofence && (
-                            <div className="mb-2 bg-primary/5 border border-primary/10 rounded p-1.5 flex justify-between items-center text-xs">
-                              <span className="text-primary font-medium flex items-center gap-1 truncate">
-                                <MapPin className="w-3 h-3 shrink-0" /> 
-                                {worker.currentGeofence}
-                              </span>
-                              {worker.geofenceArrivalTime && (
-                                <span className="text-primary/80 font-mono pl-2 shrink-0">{new Date(worker.geofenceArrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <div className="space-y-1.5 mb-2.5">
+                            {worker.currentGeofence && (
+                              <div className="flex items-start gap-1.5 text-xs">
+                                <MapPin className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                                <span className="text-muted-foreground truncate">{worker.currentGeofence}</span>
+                              </div>
+                            )}
+
+                            {worker.currentTask && (
+                              <div className="flex items-start gap-1.5 text-xs">
+                                <Target className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
+                                <span className="text-muted-foreground truncate">{worker.currentTask}</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center justify-between text-xs pt-2 border-t border-border/50">
+                            <div className="flex items-center gap-2">
+                              {worker.batteryLevel !== undefined && (
+                                <BatteryIndicator level={worker.batteryLevel} />
+                              )}
+                              {worker.accuracy !== undefined && (
+                                <GpsSignalBadge accuracy={worker.accuracy} variant="inline" showAccuracy={false} />
                               )}
                             </div>
-                          )}
-
-                          <div className="flex justify-between items-center text-xs text-muted-foreground/70">
-                            <span className="flex items-center gap-1 font-mono">
-                              <Navigation className="w-3 h-3 text-primary shrink-0" /> 
-                              {worker.latitude.toFixed(3)}, {worker.longitude.toFixed(3)}
-                            </span>
-                            <span>{worker.timestamp ? new Date(worker.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                            <div className="text-muted-foreground">
+                              {worker.timestamp ? <TimeAgo timestamp={worker.timestamp} /> : 'Just now'}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -760,7 +793,7 @@ export default function LiveTrackingDashboard() {
             <div className="p-5 border-t border-border/50 bg-surface-muted/30">
               <div className="flex justify-between items-center mb-3">
                 <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
-                  <Map className="w-4 h-4 text-primary" /> Worker Trail
+                  <Map className="w-4 h-4 text-primary" /> {workers[selectedWorkerId]?.workerName || 'Worker'}'s Trail
                 </h3>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" className="sr-only peer" checked={showTrail} onChange={(e) => setShowTrail(e.target.checked)} />
@@ -772,7 +805,7 @@ export default function LiveTrackingDashboard() {
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="space-y-3"
+                  className="space-y-4"
                 >
                   <Input 
                     type="date" 
@@ -788,36 +821,22 @@ export default function LiveTrackingDashboard() {
                       </div>
                     ) : !trailData || trailData.coordinates.length === 0 ? (
                       <div className="text-xs text-muted-foreground bg-surface p-2.5 rounded-lg border border-border font-medium">
-                        No GPS history available.
+                        No GPS history available for this date.
                       </div>
                     ) : trailData.coordinates.length === 1 ? (
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="bg-background p-2.5 rounded-lg border border-border/50 shadow-sm flex flex-col gap-1">
-                          <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Distance</span>
-                          <span className="font-bold text-foreground">0 m</span>
-                        </div>
-                        <div className="bg-background p-2.5 rounded-lg border border-border/50 shadow-sm flex flex-col gap-1">
-                          <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Trail Points</span>
-                          <span className="font-bold text-foreground">1</span>
-                        </div>
-                        <div className="col-span-2 bg-background p-2.5 rounded-lg border border-border/50 shadow-sm flex flex-col gap-1">
-                          <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Status</span>
-                          <span className="font-bold text-warning">Worker stationary</span>
+                      <div className="grid grid-cols-2 gap-3">
+                        <StatCard title="Distance" value="0 km" className="p-3 shadow-none border-border/50" />
+                        <StatCard title="Points" value="1" subtitle="Ping" className="p-3 shadow-none border-border/50" />
+                        <div className="col-span-2">
+                          <StatCard title="Movement Status" value="Stationary" colorScheme="warning" className="p-3 shadow-none border-border/50" />
                         </div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="bg-background p-2.5 rounded-lg border border-border/50 shadow-sm flex flex-col gap-1">
-                          <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Distance</span>
-                          <span className="font-bold text-foreground">{trailData.totalDistance.toFixed(2)} km</span>
-                        </div>
-                        <div className="bg-background p-2.5 rounded-lg border border-border/50 shadow-sm flex flex-col gap-1">
-                          <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Points</span>
-                          <span className="font-bold text-foreground">{trailData.totalPoints} ping(s)</span>
-                        </div>
-                        <div className="col-span-2 bg-background p-2.5 rounded-lg border border-border/50 shadow-sm flex flex-col gap-1">
-                          <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Last Updated</span>
-                          <span className="font-bold text-foreground">{new Date(trailData.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                      <div className="grid grid-cols-2 gap-3">
+                        <StatCard title="Distance" value={`${trailData.totalDistance.toFixed(2)} km`} className="p-3 shadow-none border-border/50" />
+                        <StatCard title="Points" value={trailData.totalPoints} subtitle="Pings" className="p-3 shadow-none border-border/50" />
+                        <div className="col-span-2">
+                          <StatCard title="Last Updated" value={trailData.endTime ? <TimeAgo timestamp={trailData.endTime} /> : 'N/A'} className="p-3 shadow-none border-border/50" />
                         </div>
                       </div>
                     )}
@@ -834,7 +853,7 @@ export default function LiveTrackingDashboard() {
         </Card>
 
         {/* Map Area */}
-        <Card className="flex-1 bg-surface-muted/10 border-border/50 overflow-hidden relative z-0 p-0">
+        <Card className="w-full flex-1 min-h-[420px] sm:min-h-[520px] lg:min-h-[650px] bg-surface-muted/10 border-border/50 overflow-hidden relative z-0 p-0 flex flex-col shadow-xs">
           {loading && activeWorkersList.length === 0 && (
             <div className="absolute inset-0 z-[1000] bg-background/50 backdrop-blur-sm flex flex-col items-center justify-center">
               <div className="w-12 h-12 border-4 border-border border-t-primary rounded-full animate-spin mb-4 shadow-lg"></div>
@@ -873,74 +892,97 @@ export default function LiveTrackingDashboard() {
                 }}
               >
                 <Popup className="rounded-xl shadow-2xl border-0 overflow-hidden p-0 custom-popup" minWidth={260}>
-                  <div className="bg-foreground text-background p-3.5 flex justify-between items-center rounded-t-lg">
-                    <h3 className="font-bold text-base truncate flex items-center gap-2">
-                      {worker.workerName || 'Unknown Worker'}
-                    </h3>
-                    <span className={`w-2.5 h-2.5 rounded-full ${worker.timestamp && (new Date() - new Date(worker.timestamp) < 5 * 60 * 1000) ? 'bg-success' : 'bg-destructive'}`} />
+                  <div className="bg-foreground text-background p-3.5 flex items-center gap-3 rounded-t-lg">
+                    <Avatar fallback={worker.workerName || '?'} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-sm truncate">
+                        {worker.workerName || 'Unknown Worker'}
+                      </h3>
+                      <div className="text-[10px] text-background/70 capitalize">
+                        {worker.attendanceStatus === 'manual_override' ? 'Override' : (worker.attendanceStatus || 'Active')}
+                      </div>
+                    </div>
+                    <span className={`w-2.5 h-2.5 shrink-0 rounded-full ${worker.timestamp && (new Date() - new Date(worker.timestamp) < 5 * 60 * 1000) ? 'bg-success' : 'bg-destructive'}`} />
                   </div>
-                  <div className="p-4 space-y-3.5 bg-background text-foreground">
-                    <div className="grid grid-cols-2 gap-y-2.5 text-sm">
-                      <div className="text-muted-foreground">Worker ID</div>
-                      <div className="font-mono text-xs text-right bg-surface-muted py-0.5 px-1.5 rounded">{worker.workerId}</div>
-                      
-                      <div className="text-muted-foreground">Location</div>
-                      <div className="text-right text-xs font-mono">{worker.latitude.toFixed(5)}, {worker.longitude.toFixed(5)}</div>
-                      
-                      <div className="text-muted-foreground">Status</div>
-                      <div className="text-right capitalize font-medium">{worker.attendanceStatus === 'manual_override' ? 'Override' : (worker.attendanceStatus || 'Active')}</div>
-                      
-                      {worker.accuracy && (
-                        <>
-                          <div className="text-muted-foreground">Accuracy</div>
-                          <div className="text-right font-mono">±{Math.round(worker.accuracy)}m</div>
-                        </>
-                      )}
-                      
-                      {worker.speed !== undefined && (
-                        <>
-                          <div className="text-muted-foreground">Movement</div>
-                          <div className="text-right font-medium">
-                            {worker.isMoving ? <span className="text-primary flex items-center justify-end gap-1"><Gauge className="w-3.5 h-3.5"/> {Math.round(worker.speed * 3.6)} km/h</span> : <span className="text-muted-foreground">Stationary</span>}
-                          </div>
-                        </>
-                      )}
-                      
+                  <div className="p-4 space-y-3 bg-background text-foreground">
+                    {worker.currentGeofence && (
+                      <div className="flex items-start gap-2">
+                        <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <div>
+                          <div className="text-sm font-medium text-foreground">{worker.currentGeofence}</div>
+                          <div className="text-xs text-muted-foreground">Current Location</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {worker.currentTask && (
+                      <div className="flex items-start gap-2">
+                        <Target className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+                        <div>
+                          <div className="text-sm font-medium text-foreground truncate">{worker.currentTask}</div>
+                          <div className="text-xs text-muted-foreground">Current Task</div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2 mt-2">
                       {worker.batteryLevel !== undefined && (
-                        <>
-                          <div className="text-muted-foreground">Battery</div>
-                          <div className="text-right text-success flex items-center justify-end gap-1">
-                            <Battery className="w-3.5 h-3.5"/> {worker.batteryLevel}%
-                          </div>
-                        </>
+                        <div className="flex items-center gap-2 text-xs border border-border/50 rounded-lg p-2 bg-surface-muted/30">
+                          <span className="text-muted-foreground">Battery:</span>
+                          <BatteryIndicator level={worker.batteryLevel} />
+                        </div>
+                      )}
+                      
+                      {worker.accuracy !== undefined && (
+                        <div className="flex items-center gap-2 text-xs border border-border/50 rounded-lg p-2 bg-surface-muted/30">
+                          <span className="text-muted-foreground">GPS:</span>
+                          <GpsSignalBadge accuracy={worker.accuracy} variant="inline" showAccuracy={false} />
+                        </div>
                       )}
                     </div>
 
-                    {worker.currentGeofence && (
-                      <div className="mt-3 pt-3 border-t border-border/50">
-                        <div className="text-xs text-primary font-bold uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                          <MapPin className="w-3 h-3" /> Current Visit
-                        </div>
-                        <div className="flex justify-between items-center text-sm bg-primary/5 p-2 rounded-lg border border-primary/10">
-                          <span className="font-medium truncate pr-2 text-foreground">{worker.currentGeofence}</span>
-                          {worker.geofenceArrivalTime && (
-                            <span className="text-xs font-mono text-primary/80 shrink-0">{new Date(worker.geofenceArrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                          )}
-                        </div>
-                        {worker.geofenceArrivalTime && (
-                          <div className="text-[10px] text-muted-foreground mt-1.5 text-right font-medium">
-                            Duration: {Math.floor((new Date().getTime() - new Date(worker.geofenceArrivalTime).getTime()) / 60000)} mins
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    
-                    <div className="pt-3 mt-1 border-t border-border/50 flex justify-between items-center text-xs text-muted-foreground bg-surface-muted/30 p-2 rounded-lg">
-                      <span className="font-medium">Last Ping</span>
-                      <span className="font-bold text-foreground">
-                        {worker.timestamp ? new Date(worker.timestamp).toLocaleTimeString() : 'Just now'}
+                    <div className="flex justify-between items-center text-xs border-t border-border/50 pt-3">
+                      <span className="text-muted-foreground">Last Seen</span>
+                      <span className="font-medium text-foreground">
+                        {worker.timestamp ? <TimeAgo timestamp={worker.timestamp} /> : 'Just now'}
                       </span>
                     </div>
+
+                    <details className="group border border-border rounded-lg bg-surface/50">
+                      <summary className="text-xs font-semibold text-muted-foreground p-2.5 cursor-pointer list-none flex justify-between items-center hover:text-foreground transition-colors">
+                        Advanced Details
+                        <span className="transform transition-transform group-open:rotate-180">▼</span>
+                      </summary>
+                      <div className="p-3 border-t border-border bg-background space-y-2">
+                        <div className="grid grid-cols-2 gap-y-2 text-xs">
+                          <div className="text-muted-foreground">Worker ID</div>
+                          <div className="font-mono text-right truncate" title={worker.workerId}>{worker.workerId.slice(-6)}</div>
+                          
+                          {worker.speed !== undefined && (
+                            <>
+                              <div className="text-muted-foreground">Speed</div>
+                              <div className="font-mono text-right">{Math.round(worker.speed * 3.6)} km/h</div>
+                            </>
+                          )}
+
+                          <div className="text-muted-foreground">Latitude</div>
+                          <div className="font-mono text-right">{worker.latitude.toFixed(5)}</div>
+
+                          <div className="text-muted-foreground">Longitude</div>
+                          <div className="font-mono text-right">{worker.longitude.toFixed(5)}</div>
+                          
+                          {worker.accuracy && (
+                            <>
+                              <div className="text-muted-foreground">Accuracy</div>
+                              <div className="font-mono text-right">±{Math.round(worker.accuracy)}m</div>
+                            </>
+                          )}
+                          
+                          <div className="text-muted-foreground">Timestamp</div>
+                          <div className="font-mono text-right truncate pl-2" title={worker.timestamp}>{worker.timestamp || 'N/A'}</div>
+                        </div>
+                      </div>
+                    </details>
                   </div>
                 </Popup>
               </Marker>

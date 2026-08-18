@@ -6,6 +6,7 @@ import { Input } from '../../common/components/ui/Input';
 import { Button } from '../../common/components/ui/Button';
 import { Mail, Lock, Eye, EyeOff, User, Briefcase } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Select } from '../../common/components/ui/Select';
 
 const roles = [
   { value: 'admin', label: 'Admin' },
@@ -99,9 +100,9 @@ export default function Register() {
       title="Create account" 
       subtitle="Register to start managing field work."
     >
-      <form className="space-y-4" onSubmit={handleSubmit} noValidate>
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Full name</label>
+      <form className="space-y-6" onSubmit={handleSubmit} noValidate>
+        <div className="space-y-2">
+          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Full name</label>
           <Input
             type="text"
             value={formState.name}
@@ -109,11 +110,12 @@ export default function Register() {
             placeholder="Ava Johnson"
             leftIcon={<User className="w-4 h-4" />}
             error={errors.name}
+            className="h-12 bg-surface-muted/50 border-border/50 focus:bg-background"
           />
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Email</label>
+        <div className="space-y-2">
+          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Email Address</label>
           <Input
             type="email"
             value={formState.email}
@@ -121,12 +123,13 @@ export default function Register() {
             placeholder="you@example.com"
             leftIcon={<Mail className="w-4 h-4" />}
             error={errors.email}
+            className="h-12 bg-surface-muted/50 border-border/50 focus:bg-background"
           />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Password</label>
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Password</label>
             <div className="relative">
               <Input
                 type={showPassword ? 'text' : 'password'}
@@ -135,21 +138,22 @@ export default function Register() {
                 placeholder="Min 8 characters"
                 leftIcon={<Lock className="w-4 h-4" />}
                 error={errors.password}
-                className="pr-10"
+                className="pr-10 h-12 bg-surface-muted/50 border-border/50 focus:bg-background"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-[9px] text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 tabIndex="-1"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+            <p className="text-[10px] text-muted-foreground font-medium">Must be at least 8 characters</p>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Confirm password</label>
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Confirm password</label>
             <div className="relative">
               <Input
                 type={showConfirmPassword ? 'text' : 'password'}
@@ -158,12 +162,12 @@ export default function Register() {
                 placeholder="Repeat password"
                 leftIcon={<Lock className="w-4 h-4" />}
                 error={errors.confirmPassword}
-                className="pr-10"
+                className="pr-10 h-12 bg-surface-muted/50 border-border/50 focus:bg-background"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-[9px] text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 tabIndex="-1"
               >
                 {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -172,25 +176,16 @@ export default function Register() {
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Role</label>
-          <div className="relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
-              <Briefcase className="w-4 h-4" />
-            </div>
-            <select
-              value={formState.role}
-              onChange={(event) => setFormState({ ...formState, role: event.target.value })}
-              className={`w-full rounded-lg border bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-primary pl-10 ${errors.role ? 'border-destructive focus:border-destructive focus:ring-destructive' : 'border-input focus:border-primary'}`}
-            >
-              {roles.map((role) => (
-                <option key={role.value} value={role.value}>
-                  {role.label}
-                </option>
-              ))}
-            </select>
-            {errors.role && <p className="text-xs text-destructive mt-1.5">{errors.role}</p>}
-          </div>
+        <div className="space-y-2">
+          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Role</label>
+          <Select
+            value={formState.role}
+            onChange={(event) => setFormState({ ...formState, role: event.target.value })}
+            icon={Briefcase}
+            options={roles}
+            error={errors.role}
+            className="h-12 bg-surface-muted/50 border-border/50 focus:bg-background"
+          />
         </div>
 
         <AnimatePresence>
@@ -199,9 +194,9 @@ export default function Register() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="rounded-lg bg-destructive/10 px-4 py-3 border border-destructive/20 text-sm text-destructive"
+              className="rounded-xl bg-destructive/10 px-4 py-3 border border-destructive/20 text-sm text-destructive flex items-start gap-3"
             >
-              {serverMessage}
+              <span>{serverMessage}</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -209,17 +204,17 @@ export default function Register() {
         <Button
           type="submit"
           isLoading={isSubmitting}
-          className="w-full mt-4"
+          className="w-full mt-2 h-12 text-base shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all font-bold"
           size="lg"
         >
-          Create account
+          Create Account
         </Button>
       </form>
 
-      <div className="mt-8 text-center text-sm text-muted-foreground">
-        <p>
+      <div className="mt-10 text-center">
+        <p className="text-sm font-medium text-muted-foreground">
           Already registered?{' '}
-          <Link to="/login" className="font-semibold text-primary hover:text-primary-hover transition-colors">
+          <Link to="/login" className="font-bold text-foreground hover:text-primary transition-colors">
             Sign in
           </Link>
         </p>

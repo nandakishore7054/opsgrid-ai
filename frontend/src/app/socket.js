@@ -1,8 +1,19 @@
 import { io } from 'socket.io-client';
 import { getAccessToken } from './api';
 
-export const socket = io('/', {
+const getSocketUrl = () => {
+  if (import.meta.env.VITE_SOCKET_URL) {
+    return import.meta.env.VITE_SOCKET_URL;
+  }
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '');
+  }
+  return '/';
+};
+
+export const socket = io(getSocketUrl(), {
   autoConnect: false,
+  transports: ['websocket', 'polling'],
 });
 
 export function connectSocket(user) {
@@ -15,11 +26,8 @@ export function connectSocket(user) {
   };
 
   socket.connect();
-  // Room joining is now automatic on the server based on verified JWT identity.
-  // No manual 'join' emit is needed.
 }
 
 export function disconnectSocket() {
   socket.disconnect();
 }
-

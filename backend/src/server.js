@@ -25,9 +25,28 @@ async function startServer() {
 
   const server = http.createServer(app);
 
+  const isAllowedOrigin = (origin) => {
+    if (!origin) return true;
+    const cleanOrigin = origin.replace(/\/+$/, '');
+    const allowed = environment.clientOrigins || [environment.clientOrigin];
+    if (allowed.includes('*') || allowed.includes(cleanOrigin)) {
+      return true;
+    }
+    if (environment.nodeEnv === 'development' && /^http:\/\/localhost(:\d+)?$/.test(cleanOrigin)) {
+      return true;
+    }
+    return false;
+  };
+
   const io = new Server(server, {
     cors: {
-      origin: environment.clientOrigin,
+      origin: (origin, callback) => {
+        if (isAllowedOrigin(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Origin not allowed by Socket.IO CORS: ' + origin));
+        }
+      },
       credentials: true,
     },
   });

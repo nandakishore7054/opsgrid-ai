@@ -18,10 +18,28 @@ const { environment } = require('./config/environment');
 
 const app = express();
 
-app.use(helmet());
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  const cleanOrigin = origin.replace(/\/+$/, '');
+  const allowed = environment.clientOrigins || [environment.clientOrigin];
+  if (allowed.includes('*') || allowed.includes(cleanOrigin)) {
+    return true;
+  }
+  if (environment.nodeEnv === 'development' && /^http:\/\/localhost(:\d+)?$/.test(cleanOrigin)) {
+    return true;
+  }
+  return false;
+};
+
 app.use(
   cors({
-    origin: environment.clientOrigin,
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     credentials: true,
   })
 );

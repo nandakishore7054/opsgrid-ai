@@ -19,13 +19,24 @@ export function clearSession() {
   setAccessToken(null);
 }
 
+const getBaseUrl = () => {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+  if (import.meta.env.VITE_API_URL) {
+    const rawUrl = import.meta.env.VITE_API_URL.replace(/\/+$/, '');
+    return rawUrl.endsWith('/api') ? rawUrl : `${rawUrl}/api`;
+  }
+  return '/api';
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: getBaseUrl(),
   withCredentials: true,
 });
 
 const refreshClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: getBaseUrl(),
   withCredentials: true,
 });
 
@@ -58,20 +69,19 @@ api.interceptors.response.use(
 
     try {
       const refreshResponse = await refreshClient.post('/auth/refresh-token');
-      const newAccessToken = refreshResponse.data?.data?.accessToken;
+      const nextAccessToken = refreshResponse.data?.data?.accessToken;
 
-      if (!newAccessToken) {
-        throw error;
+      if (!nextAccessToken) {
+        clearSession();
+        return Promise.reject(error);
       }
 
-      setAccessToken(newAccessToken);
+      setAccessToken(nextAccessToken);
       originalRequest.headers = originalRequest.headers || {};
-      originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-
+      originalRequest.headers.Authorization = `Bearer ${nextAccessToken}`;
       return api(originalRequest);
     } catch (refreshError) {
       clearSession();
-      window.dispatchEvent(new Event('auth:session-expired'));
       return Promise.reject(refreshError);
     }
   }

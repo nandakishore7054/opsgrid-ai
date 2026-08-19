@@ -12,9 +12,9 @@
 
 OpsGrid connects dispatchers with distributed field workers through **real-time GPS tracking**, **intelligent task assignment**, **geofencing**, **analytics**, and **AI-generated operational intelligence** — all in a single platform.
 
-![OpsGrid Admin Command Center](docs/screenshots/admin-dashboard.png)
+![OpsGrid Admin Dashboard](docs/screenshots/admin-dashboard.png)
 
-*Admin Command Center — Real-time operational overview with worker locations, KPI metrics, and active field operations.*
+*Admin Dashboard — Real-time operational overview with worker locations, KPI metrics, and active field operations.*
 
 ---
 
@@ -52,7 +52,7 @@ OpsGrid connects dispatchers with distributed field workers through **real-time 
 
 ## 📸 Screenshots
 
-### Admin Command Center
+### Admin Dashboard
 
 ![Admin Dashboard](docs/screenshots/admin-dashboard.png)
 

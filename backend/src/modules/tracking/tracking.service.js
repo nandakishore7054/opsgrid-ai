@@ -1,5 +1,6 @@
 const WorkerLocation = require('./location.model');
 const AttendanceRecord = require('../attendance/attendance.model');
+const Geofence = require('./geofence.model');
 
 const { getStartOfDay, getEndOfDay } = require('../../core/utils/date.util');
 

@@ -1,6 +1,7 @@
 const User = require('../auth/auth.model');
 const AttendanceRecord = require('../attendance/attendance.model');
 const CustomerVisit = require('../tracking/customerVisit.model');
+const Geofence = require('../tracking/geofence.model');
 const WorkerLocation = require('../tracking/location.model');
 const trackingService = require('../tracking/tracking.service');
 const { calculateTotalDistance } = require('../../core/utils/distance.util');
@@ -16,6 +17,13 @@ let chartsCache = {
   timestamp: 0
 };
 const CACHE_TTL = 30 * 1000; // 30 seconds
+
+function invalidateDashboardCache() {
+  cache.data = null;
+  cache.timestamp = 0;
+  chartsCache.data = null;
+  chartsCache.timestamp = 0;
+}
 async function getWorkerKPIs() {
   const totalWorkers = await User.countDocuments({ role: 'worker' });
   const activeWorkersArray = await trackingService.getActiveWorkers();
@@ -301,5 +309,6 @@ module.exports = {
   getWorkerKPIs,
   getAttendanceKPIs,
   getVisitKPIs,
-  getDistanceKPIs
+  getDistanceKPIs,
+  invalidateDashboardCache
 };

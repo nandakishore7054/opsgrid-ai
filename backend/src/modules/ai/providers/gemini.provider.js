@@ -10,9 +10,11 @@ class GeminiProvider extends BaseProvider {
 
     const ai = new GoogleGenAI({ apiKey: environment.geminiApiKey });
 
+    const model = process.env.GEMINI_MODEL || environment.geminiModel || 'gemini-3.6-flash';
+
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: model,
         contents: userPrompt,
         config: {
           systemInstruction: systemPrompt,

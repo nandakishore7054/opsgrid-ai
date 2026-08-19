@@ -43,7 +43,7 @@ function setupTrackingSockets(io) {
         const user = await User.findById(workerIdStr);
         if (!user) return;
 
-        const incomingTimestamp = parsed.data.timestamp || new Date();
+        const incomingTimestamp = parsed.data.timestamp ? new Date(parsed.data.timestamp) : new Date();
         const incomingLat = parsed.data.latitude;
         const incomingLng = parsed.data.longitude;
 
@@ -52,23 +52,33 @@ function setupTrackingSockets(io) {
           timestamp: incomingTimestamp
         };
 
+        const { getStartOfDay, getEndOfDay } = require('../../core/utils/date.util');
+        const WorkerLocation = require('./location.model');
+
+        // Query the latest ACCEPTED tracking point for this worker within the current operational day
+        const startOfToday = getStartOfDay(incomingTimestamp);
+        const endOfToday = getEndOfDay(incomingTimestamp);
+
+        const latestTodayLocation = await WorkerLocation.findOne({
+          workerId: workerIdStr,
+          timestamp: { $gte: startOfToday, $lte: endOfToday }
+        }).sort({ timestamp: -1 });
+
         let lastValidPoint = null;
-        if (user.currentLocation && user.currentLocation.coordinates && user.currentLocation.coordinates.length === 2) {
+        if (latestTodayLocation && latestTodayLocation.location && latestTodayLocation.location.coordinates) {
           lastValidPoint = {
-            location: user.currentLocation,
-            timestamp: user.lastPing
+            location: latestTodayLocation.location,
+            timestamp: latestTodayLocation.timestamp
           };
         }
 
         const validation = isValidGPSUpdate(lastValidPoint, newPoint, 'socket');
 
-        const WorkerLocation = require('./location.model');
-        const latestWorkerLocation = await WorkerLocation.findOne({ workerId: workerIdStr }).sort({ timestamp: -1 });
         let calcTimeDiff = 0;
         let calcSpeed = 0;
         if (lastValidPoint && lastValidPoint.timestamp) {
-            calcTimeDiff = (new Date(incomingTimestamp) - new Date(lastValidPoint.timestamp)) / (1000 * 60 * 60);
-            if (calcTimeDiff > 0 && validation.distanceKm) calcSpeed = validation.distanceKm / calcTimeDiff;
+          calcTimeDiff = (new Date(incomingTimestamp) - new Date(lastValidPoint.timestamp)) / (1000 * 60 * 60);
+          if (calcTimeDiff > 0 && validation.distanceKm) calcSpeed = validation.distanceKm / calcTimeDiff;
         }
 
         console.log(`\n--- RUNTIME EVIDENCE [Worker: ${workerIdStr}] ---`);
@@ -79,16 +89,16 @@ function setupTrackingSockets(io) {
         console.log(`Current User:
   - currentLocation: ${user.currentLocation ? JSON.stringify(user.currentLocation.coordinates) : 'null'}
   - lastPing: ${user.lastPing ? user.lastPing.toISOString() : 'null'}`);
-        console.log(`Latest WorkerLocation document:
-  - timestamp: ${latestWorkerLocation ? latestWorkerLocation.timestamp.toISOString() : 'null'}
-  - latitude: ${latestWorkerLocation ? latestWorkerLocation.location.coordinates[1] : 'null'}
-  - longitude: ${latestWorkerLocation ? latestWorkerLocation.location.coordinates[0] : 'null'}`);
-        console.log(`Calculated (using user.lastPing):
+        console.log(`Latest Today Accepted WorkerLocation:
+  - timestamp: ${latestTodayLocation ? latestTodayLocation.timestamp.toISOString() : 'null (Daily Baseline)'}
+  - latitude: ${latestTodayLocation ? latestTodayLocation.location.coordinates[1] : 'null'}
+  - longitude: ${latestTodayLocation ? latestTodayLocation.location.coordinates[0] : 'null'}`);
+        console.log(`Calculated (against latest today point):
   - distance: ${validation.distanceKm || 0} km
   - timeDiff: ${calcTimeDiff.toFixed(6)} hours
   - speed: ${calcSpeed.toFixed(2)} km/h`);
         console.log(`Decision:
-  - ${validation.isValid ? 'SAVED' : 'REJECTED'}`);
+  - ${validation.isValid ? 'SAVED (Accepted)' : 'REJECTED'}`);
         console.log(`Reason: ${validation.reason}`);
         console.log(`--------------------------------------\n`);
 

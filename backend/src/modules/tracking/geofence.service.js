@@ -35,26 +35,21 @@ async function checkGeofenceTransitions(workerId, location) {
   const currentGeofences = new Set();
   const point = turf.point([location.longitude, location.latitude]);
 
-  console.log(`\n[TRACE: GEOFENCE ENGINE] Starting transitions check for worker ${workerIdStr}`);
-  console.log(`[TRACE: GEOFENCE ENGINE] Worker GPS: lon=${location.longitude}, lat=${location.latitude}`);
-  
   const matchedGeofences = [];
 
   for (const geofence of activeGeofences) {
     let isInside = false;
     let area = Infinity;
-
-    console.log(`[TRACE: GEOFENCE ENGINE] Checking against geofence: ID=${geofence._id}, Name="${geofence.name}", Category="${geofence.category}", Type="${geofence.type}"`);
+    let onBoundary = false;
 
     if (geofence.type === 'polygon' && geofence.boundary && geofence.boundary.coordinates) {
       try {
         const polygon = turf.polygon(geofence.boundary.coordinates);
-        isInside = turf.booleanPointInPolygon(point, polygon);
+        isInside = turf.booleanPointInPolygon(point, polygon, { ignoreBoundary: false });
         if (isInside) {
           area = turf.area(polygon);
-          console.log(`[TRACE: GEOFENCE ENGINE] INSIDE polygon! Area: ${area} sqm`);
-        } else {
-          console.log(`[TRACE: GEOFENCE ENGINE] OUTSIDE polygon.`);
+          const strictlyInside = turf.booleanPointInPolygon(point, polygon, { ignoreBoundary: true });
+          onBoundary = !strictlyInside;
         }
       } catch (err) {
         console.error(`[TRACE: ERROR] Turf error on polygon for geofence ${geofence._id}:`, err.message || err);
@@ -66,9 +61,7 @@ async function checkGeofenceTransitions(workerId, location) {
         isInside = distance <= geofence.radius;
         if (isInside) {
           area = Math.PI * Math.pow(geofence.radius, 2);
-          console.log(`[TRACE: GEOFENCE ENGINE] INSIDE circle! Distance: ${distance}m, Radius: ${geofence.radius}m, Area: ${area} sqm`);
-        } else {
-          console.log(`[TRACE: GEOFENCE ENGINE] OUTSIDE circle (Distance: ${distance}m > Radius: ${geofence.radius}m).`);
+          onBoundary = Math.abs(distance - geofence.radius) < 0.5;
         }
       } catch (err) {
         console.error(`[TRACE: ERROR] Turf error on circle for geofence ${geofence._id}:`, err.message || err);
@@ -76,7 +69,7 @@ async function checkGeofenceTransitions(workerId, location) {
     }
 
     if (isInside) {
-      matchedGeofences.push({ geofence, area });
+      matchedGeofences.push({ geofence, area, onBoundary });
     }
   }
 
@@ -102,11 +95,18 @@ async function checkGeofenceTransitions(workerId, location) {
   const previousGeofences = workerGeofenceState.get(workerIdStr) || new Set();
   const attendanceService = require('../attendance/attendance.service');
   const CustomerVisit = require('./customerVisit.model');
+  const { getStartOfDay, getEndOfDay } = require('../../core/utils/date.util');
+  const { invalidateDashboardCache } = require('../dashboard/dashboard.service');
+
+  const incomingTimestamp = location.timestamp ? new Date(location.timestamp) : new Date();
+  const startOfToday = getStartOfDay(incomingTimestamp);
+  const endOfToday = getEndOfDay(incomingTimestamp);
 
   // Find newly entered geofences
   for (const geofenceId of currentGeofences) {
     if (!previousGeofences.has(geofenceId)) {
-      const geofence = activeGeofences.find(g => g._id.toString() === geofenceId);
+      const matchObj = matchedGeofences.find(m => m.geofence._id.toString() === geofenceId);
+      const geofence = matchObj?.geofence || activeGeofences.find(g => g._id.toString() === geofenceId);
       const cat = geofence?.category?.toLowerCase()?.trim();
       
       global.io?.to('admin').emit('geofence:entered', {
@@ -114,7 +114,7 @@ async function checkGeofenceTransitions(workerId, location) {
         geofenceId: geofenceId,
         geofenceName: geofence?.name,
         category: geofence?.category,
-        timestamp: new Date()
+        timestamp: incomingTimestamp
       });
       
       await Notification.create({
@@ -125,20 +125,19 @@ async function checkGeofenceTransitions(workerId, location) {
 
       // Automatic Attendance Check-In
       if (cat === 'office') {
-        console.log(`[DEBUG] Worker ${workerIdStr} entered office geofence: ${geofence.name}`);
         try {
           await attendanceService.checkIn(workerIdStr, {
             method: 'auto',
             location: { latitude: location.latitude, longitude: location.longitude }
           });
           
-          console.log(`[DEBUG] Attendance auto check-in created for worker ${workerIdStr}`);
           await Notification.create({
             userId: workerIdStr,
             type: 'attendance_auto',
             message: `Automatically checked in at ${geofence.name}.`,
           });
           global.io?.to('manager').emit('attendance:auto_checkin', { workerId: workerIdStr, geofenceName: geofence.name });
+          invalidateDashboardCache();
         } catch (err) {
           console.error(`[ERROR] Auto check-in failed for worker ${workerIdStr}:`, err.message || err);
         }
@@ -146,42 +145,53 @@ async function checkGeofenceTransitions(workerId, location) {
 
       // Customer Visit Arrival
       if (cat === 'customer') {
-        console.log(`[DEBUG] Worker ${workerIdStr} entered customer geofence: ${geofence.name}`);
         try {
           const existingVisit = await CustomerVisit.findOne({
             workerId: workerIdStr,
             geofenceId: geofence._id,
             departureTime: null
-          });
+          }).sort({ arrivalTime: -1 });
           
           let createNewVisit = false;
+          let visitAction = 'NONE';
+          let visitRecordId = null;
 
           if (!existingVisit) {
             createNewVisit = true;
+            visitAction = 'CREATED_NEW_VISIT';
           } else {
-            // Stale visit recovery logic
-            const WorkerLocation = require('./location.model');
-            const firstOutsidePing = await WorkerLocation.findOne({
-              workerId: workerIdStr,
-              timestamp: { $gte: existingVisit.arrivalTime },
-              location: {
-                $not: {
-                  $geoWithin: {
-                    $geometry: geofence.boundary
+            const isVisitFromPastDay = existingVisit.arrivalTime < startOfToday;
+
+            if (isVisitFromPastDay) {
+              // Stale visit from a previous calendar day: close it out properly
+              const WorkerLocation = require('./location.model');
+              const firstOutsidePing = await WorkerLocation.findOne({
+                workerId: workerIdStr,
+                timestamp: { $gte: existingVisit.arrivalTime },
+                location: {
+                  $not: {
+                    $geoWithin: {
+                      $geometry: geofence.boundary
+                    }
                   }
                 }
-              }
-            }).sort({ timestamp: 1 });
+              }).sort({ timestamp: 1 });
 
-            if (firstOutsidePing) {
-              console.log(`[DEBUG] Stale active CustomerVisit found (ID: ${existingVisit._id}). First outside ping at ${firstOutsidePing.timestamp}. Recovering visit.`);
-              existingVisit.departureTime = firstOutsidePing.timestamp;
-              existingVisit.durationMs = Math.max(0, firstOutsidePing.timestamp.getTime() - existingVisit.arrivalTime.getTime());
+              if (firstOutsidePing) {
+                existingVisit.departureTime = firstOutsidePing.timestamp;
+              } else {
+                existingVisit.departureTime = getEndOfDay(existingVisit.arrivalTime);
+              }
+              existingVisit.durationMs = Math.max(0, existingVisit.departureTime.getTime() - existingVisit.arrivalTime.getTime());
               await existingVisit.save();
-              console.log(`[DEBUG] Stale CustomerVisit closed. Old visit ID: ${existingVisit._id}`);
-              createNewVisit = true; // Proceed to create the new visit for today
+
+              createNewVisit = true;
+              visitAction = 'RECOVERED_STALE_AND_CREATED_NEW';
             } else {
-              console.log(`[DEBUG] Legitimate active CustomerVisit (or memory recovery) for worker ${workerIdStr} at ${geofence.name} (ID: ${existingVisit._id}). No outside pings found.`);
+              // Continuing active visit already established today (memory state recovery)
+              createNewVisit = false;
+              visitAction = 'CONTINUING_ACTIVE_TODAY';
+              visitRecordId = existingVisit._id;
             }
           }
 
@@ -189,10 +199,11 @@ async function checkGeofenceTransitions(workerId, location) {
             const newVisit = await CustomerVisit.create({
               workerId: workerIdStr,
               geofenceId: geofence._id,
-              arrivalTime: new Date()
+              arrivalTime: incomingTimestamp
             });
-            console.log(`[DEBUG] CustomerVisit created for worker ${workerIdStr} at ${geofence.name} (New visit ID: ${newVisit._id})`);
-            
+            visitRecordId = newVisit._id;
+            invalidateDashboardCache();
+
             await Notification.create({
               userId: workerIdStr,
               type: 'system',
@@ -200,6 +211,23 @@ async function checkGeofenceTransitions(workerId, location) {
             });
             global.io?.to('manager').emit('geofence:customer_arrival', { workerId: workerIdStr, geofenceName: geofence.name });
           }
+
+          const dashboardVisitCount = await CustomerVisit.countDocuments({
+            arrivalTime: { $gte: startOfToday, $lte: endOfToday }
+          });
+
+          console.log(`\n[CUSTOMER GEOFENCE DEBUG]
+Worker: ${workerIdStr}
+Incoming coordinates: ${location.latitude}, ${location.longitude}
+Customer/geofence checked: ${geofence.name} (Category: ${geofence.category}, ID: ${geofence._id})
+Polygon: ${geofence.type === 'polygon' ? JSON.stringify(geofence.boundary?.coordinates?.[0]) : 'N/A (Circle)'}
+Point inside: true
+Point on boundary: ${matchObj?.onBoundary ? 'true (On Polygon Vertex/Edge)' : 'false (Strictly Inside)'}
+Previous geofence state: ${Array.from(previousGeofences).join(', ') || 'NONE (Outside)'}
+Current geofence state: ${Array.from(currentGeofences).join(', ')}
+Visit action: ${visitAction}
+Visit record ID: ${visitRecordId || 'N/A'}
+Dashboard visit count: ${dashboardVisitCount}\n`);
         } catch (err) {
           console.error(`[ERROR] Failed to handle CustomerVisit for worker ${workerIdStr}:`, err.message || err);
         }
@@ -221,7 +249,7 @@ async function checkGeofenceTransitions(workerId, location) {
         geofenceId: geofenceId,
         geofenceName: geofence?.name || geofenceId,
         category: geofence?.category,
-        timestamp: new Date()
+        timestamp: incomingTimestamp
       });
       
       await Notification.create({
@@ -232,19 +260,19 @@ async function checkGeofenceTransitions(workerId, location) {
 
       // Automatic Attendance Check-Out
       if (cat === 'office') {
-        console.log(`[DEBUG] Worker ${workerIdStr} exited office geofence: ${geofence?.name || geofenceId}`);
         try {
           await attendanceService.checkOut(workerIdStr, {
             method: 'auto',
             location: { latitude: location.latitude, longitude: location.longitude }
           });
-          console.log(`[DEBUG] Attendance auto check-out for worker ${workerIdStr}`);
+          
           await Notification.create({
             userId: workerIdStr,
             type: 'attendance_auto',
             message: `Automatically checked out of ${geofence?.name || geofenceId}.`,
           });
           global.io?.to('manager').emit('attendance:auto_checkout', { workerId: workerIdStr, geofenceName: geofence?.name || geofenceId });
+          invalidateDashboardCache();
         } catch (err) {
           console.error(`[ERROR] Auto check-out failed for worker ${workerIdStr}:`, err.message || err);
         }
@@ -260,11 +288,12 @@ async function checkGeofenceTransitions(workerId, location) {
           }).sort({ arrivalTime: -1 });
           
           if (visit) {
-            const now = new Date();
-            visit.departureTime = now;
-            visit.durationMs = now.getTime() - visit.arrivalTime.getTime();
+            visit.departureTime = incomingTimestamp;
+            visit.durationMs = Math.max(0, incomingTimestamp.getTime() - visit.arrivalTime.getTime());
             await visit.save();
-            console.log(`[DEBUG] CustomerVisit closed for worker ${workerIdStr} at ${geofence.name} (Duration: ${visit.durationMs}ms)`);
+            invalidateDashboardCache();
+            
+            console.log(`[CUSTOMER GEOFENCE DEBUG] CustomerVisit closed for worker ${workerIdStr} at ${geofence.name} (Departure: ${visit.departureTime}, Duration: ${visit.durationMs}ms)`);
             
             await Notification.create({
               userId: workerIdStr,

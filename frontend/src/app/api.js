@@ -20,12 +20,12 @@ export function clearSession() {
 }
 
 const getBaseUrl = () => {
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL;
-  }
   if (import.meta.env.VITE_API_URL) {
     const rawUrl = import.meta.env.VITE_API_URL.replace(/\/+$/, '');
     return rawUrl.endsWith('/api') ? rawUrl : `${rawUrl}/api`;
+  }
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
   }
   return '/api';
 };

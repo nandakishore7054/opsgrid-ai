@@ -27,6 +27,7 @@ const environment = {
   // AI Feature Config
   aiProvider: process.env.AI_PROVIDER || 'gemini',
   geminiApiKey: process.env.GEMINI_API_KEY || '',
+  geminiModel: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
   openAiApiKey: process.env.OPENAI_API_KEY || '',
   groqApiKey: process.env.GROQ_API_KEY || '',
   ollamaApiKey: process.env.OLLAMA_API_KEY || '',

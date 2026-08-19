@@ -1,5 +1,3 @@
-<![CDATA[<div align="center">
-
 # OpsGrid
 
 ### AI-Powered Field Operations Intelligence Platform
@@ -14,13 +12,9 @@
 
 OpsGrid connects dispatchers with distributed field workers through **real-time GPS tracking**, **intelligent task assignment**, **geofencing**, **analytics**, and **AI-generated operational intelligence** — all in a single platform.
 
-<br />
+![OpsGrid Admin Command Center](docs/screenshots/admin-dashboard.png)
 
-<!-- Replace with actual screenshot after deployment -->
-<img src="docs/screenshots/admin-dashboard.png" alt="OpsGrid Admin Command Center" width="100%" />
-<em>Admin Command Center — Real-time operational overview with worker locations, KPI metrics, and active field operations.</em>
-
-</div>
+*Admin Command Center — Real-time operational overview with worker locations, KPI metrics, and active field operations.*
 
 ---
 
@@ -31,9 +25,7 @@ OpsGrid connects dispatchers with distributed field workers through **real-time 
 
 > **Demo video coming soon.** Replace the link above with your YouTube demo URL.
 
-<p align="center">
-  <img src="docs/demo/opsgrid-demo.gif" alt="OpsGrid Demo" width="90%" />
-</p>
+![OpsGrid Demo](docs/demo/opsgrid-demo.gif)
 
 ---
 
@@ -62,7 +54,7 @@ OpsGrid connects dispatchers with distributed field workers through **real-time 
 
 ### Admin Command Center
 
-<img src="docs/screenshots/admin-dashboard.png" alt="Admin Dashboard" width="100%" />
+![Admin Dashboard](docs/screenshots/admin-dashboard.png)
 
 > Real-time KPI cards, worker status overview, active tasks, map with worker markers, and operational metrics.
 
@@ -70,109 +62,73 @@ OpsGrid connects dispatchers with distributed field workers through **real-time 
 
 ### Live GPS Tracking
 
-<img src="docs/screenshots/live-tracking.png" alt="Live Tracking" width="100%" />
+![Live Tracking](docs/screenshots/live-tracking.png)
 
 > Live worker map with GPS trail playback, battery/accuracy indicators, worker daily summary cards, and nearest-worker finder.
 
 ---
 
-<table>
-<tr>
-<td width="50%">
-
 ### Task Dispatch
 
-<img src="docs/screenshots/task-dispatch.png" alt="Task Dispatch" width="100%" />
+![Task Dispatch](docs/screenshots/task-dispatch.png)
 
 > Task creation with priority, deadline, location coordinates, worker assignment, and Kanban/List view toggle.
 
-</td>
-<td width="50%">
+---
 
 ### Worker Dashboard
 
-<img src="docs/screenshots/worker-dashboard.png" alt="Worker Dashboard" width="100%" />
+![Worker Dashboard](docs/screenshots/worker-dashboard.png)
 
 > Worker's assigned tasks, current status, availability, check-in state, and mobile-optimized task actions.
 
-</td>
-</tr>
-</table>
-
 ---
-
-<table>
-<tr>
-<td width="50%">
 
 ### AI Operations Summary
 
-<img src="docs/screenshots/ai-operations-summary.png" alt="AI Operations Summary" width="100%" />
+![AI Operations Summary](docs/screenshots/ai-operations-summary.png)
 
 > AI-generated operational health assessment, markdown-formatted insights, actionable recommendations, and identified risks.
 
-</td>
-<td width="50%">
+---
 
 ### Geofence Manager
 
-<img src="docs/screenshots/geofence-manager.png" alt="Geofence Manager" width="100%" />
+![Geofence Manager](docs/screenshots/geofence-manager.png)
 
 > Interactive map with polygon/circle geofence drawing, category assignment (office/customer/general), and linked task management.
 
-</td>
-</tr>
-</table>
-
 ---
-
-<table>
-<tr>
-<td width="50%">
 
 ### Analytics Dashboard
 
-<img src="docs/screenshots/analytics-dashboard.png" alt="Analytics Dashboard" width="100%" />
+![Analytics Dashboard](docs/screenshots/analytics-dashboard.png)
 
 > Attendance distribution charts, 7-day distance trends, top worker distances, and PDF/Excel report export.
 
-</td>
-<td width="50%">
+---
 
 ### Attendance & Availability
 
-<img src="docs/screenshots/attendance-availability.png" alt="Attendance & Availability" width="100%" />
+![Attendance & Availability](docs/screenshots/attendance-availability.png)
 
 > Attendance log with check-in/out times, shift assignments, leave request management, and worker availability grid.
 
-</td>
-</tr>
-</table>
-
 ---
-
-<table>
-<tr>
-<td width="50%">
 
 ### Task Submission
 
-<img src="docs/screenshots/task-submission.png" alt="Task Submission" width="100%" />
+![Task Submission](docs/screenshots/task-submission.png)
 
 > Worker submitting proof-of-completion with geo-tagged photos, notes, and GPS-verified location.
 
-</td>
-<td width="50%">
+---
 
 ### Mobile PWA
 
-<img src="docs/screenshots/mobile-pwa.png" alt="Mobile PWA" width="100%" />
+![Mobile PWA](docs/screenshots/mobile-pwa.png)
 
 > Installable progressive web app with bottom navigation, touch-optimized controls, and offline detection.
-
-</td>
-</tr>
-</table>
 
 ---
 
@@ -1191,11 +1147,6 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 
 ---
 
-<div align="center">
-
 **Built with ❤️ for field operations teams everywhere.**
 
 If this project was useful, consider giving it a ⭐
-
-</div>
-]]>

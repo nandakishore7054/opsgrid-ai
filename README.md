@@ -1139,11 +1139,11 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 
 ## 👨‍💻 Author
 
-**Your Name**
+**Nanda Kishore Nikhith Gujjuru**
 
 <!-- Replace with your actual links -->
-- [GitHub](https://github.com/YOUR_USERNAME)
-- [LinkedIn](https://linkedin.com/in/YOUR_PROFILE)
+- [GitHub](https://github.com/nandakishore7054)
+- [LinkedIn](https://linkedin.com/in/nanda-kishore-nikhith-gujjuru-86a4b6306/)
 
 ---
 
